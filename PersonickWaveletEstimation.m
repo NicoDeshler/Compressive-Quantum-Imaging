@@ -1,52 +1,50 @@
 % INITIALIZATION
 
-img = load('db1_sparse_4x4_img')
+load('db1_4sparse_4x4_img.mat');       % load in image
+
+% Image variables
+%img_y = 4;                            % vertical image dimension (pixels)
+%img_x = 4;                            % horizonal image dimension (pixels)
+%img_dims = [img_y,img_x];             % image dimension vector          
+img_dims = size(img);
+img = img/sum(img,'all');             % normalized scene intensity distribution 
+
+% Display input image
+imagesc(img);
+title('Input Image')
+xticks((1:img_dims(1))-.5);
+yticks((1:img_dims(2))-.5);
+xticklabels({})
+yticklabels({})
+grid on
 
 % HG mode state space representation
 n_HG_modes = 4;                        % max number of 1D Hermite-Gauss modes to consider
 N_HG_modes = n_HG_modes*(n_HG_modes+1)/2;% total number of Hermite-Gauss modes considered
 
-% Image variables
-img_y = 4;                            % vertical image dimension (pixels)
-img_x = 4;                            % horizonal image dimension (pixels)
-img_dims = [img_y,img_x];             % image dimension vector
-img = abs(magic(img_dims));           % normalized scene intensity distribution
-img = img/sum(img,'all');
 
-% Wavelet variables
+% Wavelet decomposition
 WaveletName = 'db1';                   % wavelet type
 WaveletLevel = 2;                      % wavelet decomposition level (complete decomp)
 [gt_theta_vec, wv_idx] = wavedec2(img,WaveletLevel,WaveletName);                 % ground truth wavelet coefficients
 n_thetas = numel(gt_theta_vec);                                            % number of wavelet coefficients
+
+% Plot the wavelet decomposition tree
+figure;
+plotwavelet2(gt_theta_vec, wv_idx, WaveletLevel, WaveletName,256,'square')
+title('Db1 Wavelet Decomposition Tree')
+xticks((1:img_dims(1))-.5);
+yticks((1:img_dims(2))-.5);
+xticklabels({})
+yticklabels({})
+grid on
+
 
 % Wavelet integrals
 [f_vec,~] = wavedec2(ones(img_dims),WaveletLevel,WaveletName);              % wavelet integrals for normalization constraint
 f_vec = f_vec';
 ff_vec = f_vec/(f_vec'*f_vec);                                              % wavelet integrals rescaled for W matrix
 
-%{
-% Sparsify wavelet decomposition
-K = 4;                                   % k-sparsity constant (number of non-zero coeffs)
-ws = gt_theta_vec;                       % sparsified wavelet coefficient vector
-[w_sorted,sort_idx] = sort(abs(ws),'descend');
-ws(sort_idx(K+1:end)) = 0;
-img_sparse = waverec2(ws,wv_idx,WaveletName);
-
-gt_theta_vec = ws;
-
-%}
-
-% Display the wavelet-sparse image
-figure;
-imagesc(img)
-title('Wavelet-Sparse Input Image')
-
-% Plot the Wavelet Decomposition Tree
-figure;
-plotwavelet2(gt_theta_vec, wv_idx, WaveletLevel,WaveletName,128,'square')
-title('Db1 Wavelet Decomposition Tree')
-
-%%
 % normalize ground truth parameters to make density operator trace 1
 gt_theta_vec = gt_theta_vec';
 gt_theta_vec = gt_theta_vec/(gt_theta_vec'*f_vec);
@@ -60,6 +58,7 @@ gt_aa_vec = W\gt_theta_vec;
 % measurement variables
 N_iter = 10000;                     % number of photons collected per bayesian update iteration
 max_iter = 50;                      % number of Bayesian updates to perform
+
 % Metropolis-Hastings parameters
 n_MCMC = 1000;                   % number of MCMC samples of the posterior distribution
 n_burn = 500;                     % number of MCMC burnin samples (number of samples discarded while Markov Chain converges to stationary distribution)
@@ -67,8 +66,7 @@ n_burn = 500;                     % number of MCMC burnin samples (number of sam
 % wavelet operators
 A_i = A_stack_HG(img_dims,n_HG_modes,n_thetas,WaveletName,WaveletLevel);
 
-
-% initialize GBM prior parameters
+% GBM prior parameters
 q = 1-.125;                               % fractional sparsity  (# zero-valued params/# params)
 z_min = 0;                                      % min variance
 z_max = 1;                                      % max variance
@@ -76,15 +74,15 @@ mu = zeros([n_thetas-1,2]);                     % means for gaussian mixture ran
 z = [z_min*ones([n_thetas-1,1]),z_max*ones([n_thetas-1,1])];    % variances for gaussian mixture randomv variables
 
 
-%  sample the unconstrained parameter vector from the GBM prior
+% sample the unconstrained parameter vector from the GBM prior
 x1 = normrnd(mu(:,1),z(:,1));
 x2 = normrnd(mu(:,2),z(:,2));
 coinflips = binornd(1,q,[numel(x1),1]);
 a_vec = coinflips.*x1 + ~coinflips.*x2;        % unconstrained parameter vector
 aa_vec = [a_vec; 1];                           % augmented unconstrained parameter vector
     
-% initialize the wavelet vector
-theta_vec = W*aa_vec;                           % wavelet vector
+% initialize the wavelet vector estimator
+theta_vec = W*aa_vec;                           % wavelet vector estimator
                      
 % initialize measurement matrix
 B_gamma = randn([N_HG_modes,N_HG_modes]);       % measurement matrix
@@ -181,7 +179,23 @@ diff = gt_theta_vec - theta_vec;
 % image estimate
 img_out = waverec2(theta_vec,wv_idx,WaveletName);
 
+figure;
+imagesc(img_out);
+title('Image Estimate')
+xticks((1:img_dims(1))-.5);
+yticks((1:img_dims(2))-.5);
+xticklabels({})
+yticklabels({})
+grid on
 
+
+figure()
+imagesc(theta_evo)
+title('Parameter Convergence')
+xlabel('iteration')
+ylabel('$\theta_i$','interpreter','latex')
+xticks(5:5:max_iter)
+yticks(1:n_thetas)
 
 
 

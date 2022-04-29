@@ -19,12 +19,15 @@ function  A_stack = A_stack_HG(img_dims,n_modes,n_thetas,WaveletName,WaveletLeve
 % --------
 % A_stack - a data cube of dimensions (N_mode,N_mode,n_thetas)
 
+% Rayleigh length
+rl = 1;
+
 % Gaussian OTF widths
-sigma_x = 1/sqrt(2);    
-sigma_y = 1/sqrt(2);
+sigma_x = rl;    
+sigma_y = rl;
 
 % Discretize object plane coordinates system
-x=linspace(-1,1,img_dims(1)); y=linspace(-1,1,img_dims(2));
+x=linspace(-rl/2,rl/2,img_dims(1)); y=linspace(-rl/2,rl/2,img_dims(2));
 [X,Y] = meshgrid(x,y);
 
 N_modes = n_modes*(n_modes+1)/2;
@@ -53,7 +56,7 @@ for i = 1:N_modes
         n = HG_proj(j).ind_y;
         
         % f = <HG_pq|Psi(x,y)><Psi(x,y)|HG_mn>
-        f = (X/2/sigma_x).^(p+m)*(Y/2/sigma_y).^(q+n)*exp(-((X/sigma_x).^2+(Y/sigma_y).^2)/4) * ...
+        f = (X/2/sigma_x).^(p+m)*(Y/2/sigma_y).^(q+n)*exp(-((X/2/sigma_x).^2+(Y/2/sigma_y).^2)) * ...
             1/sqrt(factorial(p)*factorial(q) ...
             *factorial(m)*factorial(n));
         

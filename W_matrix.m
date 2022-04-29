@@ -1,5 +1,7 @@
 function W = W_matrix(n_thetas, ff_vec)
-% Computes the matrix for transforming a_vec into theta_vec
+% Computes the matrix for transforming the unconstrained parameter vector 
+% a_vec into the wavelet coefficient vector theta_vec. The matrix is
+% defined such that it enforces the hyperplane constraint imposed by the 
 
 % Implementation of sparsity-preserving W
 N = n_thetas;

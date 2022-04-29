@@ -29,27 +29,22 @@ M = diag(aa_var) + aa_mu*aa_mu';
 
 % Transform the wavelet operator stack A with W to define a new linear 
 % combination of operators. We treat the operator stack as a 'vector' of 
-% operators such that C = [C_1,C_2,...,C_N]^T = W [A_1, A_2, ... , A_N]^T;
-C = squeeze(sum(reshape(A,[size(A),1]).*reshape(W,[1,1,size(W)]),3));
+% operators such that C = [C_1,C_2,...,C_N]^T = W^T [A_1, A_2, ... , A_N]^T;
+
+n_params = numel(aa_mu);
+C = zeros(A);
+for i = 1:n_params
+    C(:,:,i) = sum(reshape(W(:,i),[1,1,n_params]).*A,3);
+end
+
+%C = squeeze(sum(reshape(A,[size(A),1]).*reshape(W,[1,1,size(W)]),3));
 
 % compute Gamma_1
 Gamma_1 = zeros(size(A(:,:,1)));
 for i = 1:size(M,1)
     for j = 1:size(M,2)
-        Gamma_1 = Gamma_1 + C(:,:,i)*h(j)*M(i,j);
+        Gamma_1 = Gamma_1 + C(:,:,i)*M(i,j)*h(j);
     end
 end
 
-%{
-% fast method (scales poorly)
-M = diag(aa_var) + aa_mu*aa_mu';   % E[ai aj] matrix
-M = reshape(M(:),[1,1,numel(M)]);  
-
-H = repmat(h',[numel(h),1]);
-H = reshape(H(:),[1,1,numel(H)]);
-
-C = squeeze(sum(reshape(A,[size(A),1]).*reshape(W,[1,1,shape(W)]),3));
-C = repmat(C,[1,1,numel(h)]);
-Gamma_1 = sum(C.*H.*M,3);
-%}
 end

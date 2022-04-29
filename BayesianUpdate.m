@@ -37,13 +37,13 @@ function [a_vec, mu_new,z_new] = BayesianUpdate(l_vec, B_gamma, W, A, mu, z, q, 
 %             iteration.
 
 % use metropolis-hastings to sample the joint distribution and estimate the new mean and variance
-n_params = size(W,1)-1;
+n_a_params = size(W,1)-1;
 pdf = @(x)max(likelihood(l_vec, B_gamma, x', W, A) * prior(x', mu, z, q), realmin); % pdf cannot be 0 for MCMC
 proppdf = @(x,y) mvnpdf(x);
-proprnd = @(x) mvnrnd(x, eye(n_params));
+proprnd = @(x) mvnrnd(x, eye(n_a_params));
 
 % enforce the GBM prior in the posterior by updating the next mu and z.
-start = randn(1,n_params);
+start = randn(1,n_a_params);
 samples = mhsample(start, N_MCMC, 'pdf', pdf, 'proppdf', proppdf, 'proprnd', proprnd, 'burnin', N_burn);
 mu_new = [mu(:,1),mean(samples)'];
 z_new = [z(:,1),var(samples)'];
