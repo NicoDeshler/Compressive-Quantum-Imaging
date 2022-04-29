@@ -46,7 +46,9 @@ proprnd = @(x) mvnrnd(x, eye(n_a_params));
 start = randn(1,n_a_params);
 samples = mhsample(start, N_MCMC, 'pdf', pdf, 'proppdf', proppdf, 'proprnd', proprnd, 'burnin', N_burn);
 mu_new = [mu(:,1),mean(samples)'];
+%mu_new = [mean(samples)',mean(samples)'];
 z_new = [z(:,1),var(samples)'];
+%z_new = [var(samples)',var(samples)'];
 a_vec = mu_new(:,2);
 
 end

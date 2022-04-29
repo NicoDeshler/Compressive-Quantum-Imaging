@@ -19,10 +19,9 @@ function S_stack = SLD_eval(F_stack, R)
 % Add dimensionality to F if its not a matrix stack (i.e. just 1 matrix)
 is_stack = 1;
 if length(size(F_stack)) < 3
-    is_stack = 0;
     F_stack = reshape(F_stack,[size(F_stack),1]); 
+    is_stack = 0;
 end
-
 
 
 % Check that the inputs are Hermitian
@@ -33,6 +32,19 @@ end
 
 % Get the eigenvectors/values of R
 [V, d] = eig(R,'vector');
+
+% Loop method (slow but works)
+S_stack = zeros(size(F_stack));
+for i = 1:size(F_stack,1)
+    for j = 1:size(F_stack,2)
+        for k = 1:size(F_stack,3)
+            if d(i)+d(j) ~= 0
+                S_stack(:,:,k) = S_stack(:,:,k) + 1/2 * (V(:,i)'*F_stack(:,:,k)*V(:,j))/(d(i)+d(j)) * V(:,i)*V(:,j)';
+            end
+        end
+    end
+end
+
 
 
 %{
@@ -59,18 +71,6 @@ end
 
 %} 
 
-
-% Loop method (slow but works)
-S_stack = zeros(size(F_stack));
-for i = 1:size(F_stack,1)
-    for j = 1:size(F_stack,2)
-        for k = 1:size(F_stack,3)
-            if d(i)+d(j) ~= 0
-                S_stack(:,:,k) = S_stack(:,:,k) + 2 * (V(:,i)'*F_stack(:,:,k)*V(:,j))/(d(i)+d(j)) * V(:,i)*V(:,j)';
-            end
-        end
-    end
-end
 
 %{
 % Fast matrix method (might be wrong - compare output to loop method!)

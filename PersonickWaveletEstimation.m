@@ -17,15 +17,15 @@ yticks((1:img_dims(2))-.5);
 xticklabels({})
 yticklabels({})
 grid on
+axis('square')
 
 % HG mode state space representation
 n_HG_modes = 4;                        % max number of 1D Hermite-Gauss modes to consider
 N_HG_modes = n_HG_modes*(n_HG_modes+1)/2;% total number of Hermite-Gauss modes considered
 
-
 % Wavelet decomposition
 WaveletName = 'db1';                   % wavelet type
-WaveletLevel = 2;                      % wavelet decomposition level (complete decomp)
+WaveletLevel = 4;                      % wavelet decomposition level (complete decomp)
 [gt_theta_vec, wv_idx] = wavedec2(img,WaveletLevel,WaveletName);                 % ground truth wavelet coefficients
 n_thetas = numel(gt_theta_vec);                                            % number of wavelet coefficients
 
@@ -38,7 +38,7 @@ yticks((1:img_dims(2))-.5);
 xticklabels({})
 yticklabels({})
 grid on
-
+axis 'square'
 
 % Wavelet integrals
 [f_vec,~] = wavedec2(ones(img_dims),WaveletLevel,WaveletName);              % wavelet integrals for normalization constraint
@@ -48,6 +48,13 @@ ff_vec = f_vec/(f_vec'*f_vec);                                              % wa
 % normalize ground truth parameters to make density operator trace 1
 gt_theta_vec = gt_theta_vec';
 gt_theta_vec = gt_theta_vec/(gt_theta_vec'*f_vec);
+
+% display ground truth wavelet coefficients
+figure;
+stem(gt_theta_vec)
+xlabel('Wavelet Linear Index')
+ylabel('Coefficient Value')
+title([WaveletName,' Decomposition'])
 
 % W matrix for transforming a_vec into theta_vec
 W = W_matrix(n_thetas, ff_vec);
@@ -60,8 +67,8 @@ N_iter = 10000;                     % number of photons collected per bayesian u
 max_iter = 50;                      % number of Bayesian updates to perform
 
 % Metropolis-Hastings parameters
-n_MCMC = 1000;                   % number of MCMC samples of the posterior distribution
-n_burn = 500;                     % number of MCMC burnin samples (number of samples discarded while Markov Chain converges to stationary distribution)
+n_MCMC = 10000;                   % number of MCMC samples of the posterior distribution
+n_burn = 1000;                     % number of MCMC burnin samples (number of samples discarded while Markov Chain converges to stationary distribution)
 
 % wavelet operators
 A_i = A_stack_HG(img_dims,n_HG_modes,n_thetas,WaveletName,WaveletLevel);
@@ -108,6 +115,9 @@ while iter <= max_iter
     [a_vec,mu,z] = BayesianUpdate(l_vec,B_gamma, W, A_i, mu, z, q, n_MCMC, n_burn);
     aa_vec = [a_vec ; 1];
     theta_vec = W*aa_vec;
+    
+    % update the sparsity term in the GBM so that we converge to the true mean 
+    q = q*q;
     
     % get mean and variance of the augmented parameter vector
     a_mu = mu*[q;(1-q)];                          % expected value of a_vec under GBM prior
@@ -157,7 +167,7 @@ while iter <= max_iter
     
     stem(theta_vec,'filled')
     xlabel('Wavelet Linear Index')
-    ylabel('Wavelet Coefficient Magnitude')
+    ylabel('Coefficient Value')
     title(['$\hat{\theta}^{[',num2str(iter),']}$'],'interpreter','latex')
     drawnow
     frame = getframe(gcf);

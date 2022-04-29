@@ -31,13 +31,7 @@ M = diag(aa_var) + aa_mu*aa_mu';
 % combination of operators. We treat the operator stack as a 'vector' of 
 % operators such that C = [C_1,C_2,...,C_N]^T = W^T [A_1, A_2, ... , A_N]^T;
 
-n_params = numel(aa_mu);
-C = zeros(A);
-for i = 1:n_params
-    C(:,:,i) = sum(reshape(W(:,i),[1,1,n_params]).*A,3);
-end
-
-%C = squeeze(sum(reshape(A,[size(A),1]).*reshape(W,[1,1,size(W)]),3));
+C = squeeze(sum(reshape(A,[size(A),1]).*reshape(W,[1,1,size(W)]),3));
 
 % compute Gamma_1
 Gamma_1 = zeros(size(A(:,:,1)));

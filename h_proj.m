@@ -19,6 +19,8 @@ end
 
 % Get eigenvector corresponding to minimum eigenvalue of the G matrix
 [V,lam] = eig(G);
-[~, min_eigval_idx] = min(lam);
-h = V(:,min_eigval_idx); % joint parameter vector
+%[~, min_eigval_idx] = min(lam);
+[~, max_eigval_idx] = max(lam);
+%h = V(:,min_eigval_idx); % joint parameter vector
+h = V(:,max_eigval_idx); % joint parameter vector
 end
