@@ -64,7 +64,7 @@ gt_aa_vec = W\gt_theta_vec;
 
 % measurement variables
 N_iter = 10000;                     % number of photons collected per bayesian update iteration
-max_iter = 50;                      % number of Bayesian updates to perform
+max_iter = 500;                     % number of Bayesian updates to perform
 
 % Metropolis-Hastings parameters
 n_MCMC = 10000;                   % number of MCMC samples of the posterior distribution
@@ -133,7 +133,7 @@ while iter <= max_iter
     B_i = SLD_eval(Gamma_i1,Gamma_0);
     
     % compute the SLD eigenprojection vector
-    h = h_proj(Gamma_0, B_i);
+    h = h_proj(Gamma_0, B_i, aa_mu, aa_var);
     
     % calculate Gamma_1
     Gamma_1 = Gamma_1_HG(A_i,W,h,aa_mu,aa_var);

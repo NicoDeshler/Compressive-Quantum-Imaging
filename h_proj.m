@@ -1,12 +1,18 @@
-function h = h_proj(Gamma_0,B_stack)
+function h = h_proj(Gamma_0,B_stack, aa_mu, aa_var)
 % Compute joint parameter projection vector h
 
 % Inputs:
+% aa_var: augmented unconstrained parameter vector variances
+% aa_mu : augmented uncontrained prameter vector means
+% Gamma_0 : The mena density operator
 % B_stack : A matrix stack of the optimal parameter estimators in HG
 % representation
+% 
 
 % Outputs:
 % h : The joint parameter projection vector
+
+M = diag(aa_var) + aa_mu*aa_mu'; 
 
 g = size(B_stack,3);
 G = zeros([g,g]);
@@ -17,10 +23,11 @@ for i = 1:g
     end
 end
 
-% Get eigenvector corresponding to minimum eigenvalue of the G matrix
-[V,lam] = eig(G);
-%[~, min_eigval_idx] = min(lam);
+% Quantum Bayesian Cramer-Rao Lower Bound (QBCRLB)
+Sigma_Q = M - G;
+
+% Get eigenvector corresponding to maximum eigenvalue of the QBCRLB
+[V,lam] = eig(Sigma_Q);
 [~, max_eigval_idx] = max(lam);
-%h = V(:,min_eigval_idx); % joint parameter vector
 h = V(:,max_eigval_idx); % joint parameter vector
 end
