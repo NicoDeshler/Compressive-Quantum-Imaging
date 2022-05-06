@@ -1,5 +1,5 @@
 % Bayesian update for the posterior
-function [a_vec, mu_new,z_new] = BayesianUpdate(l_vec, B_gamma, W, A, mu, z, q, N_MCMC, N_burn)
+function [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, W, A, priors, prior_doms, N_MCMC, N_burn, start)
 % Updates the estimate for the constrained parameter vector a_vec using a
 % Bayesian inference scheme. The hyperparameters for the prior are also
 % updated to serve the subsequeny iteration. The Likelihood is computed 
@@ -30,6 +30,10 @@ function [a_vec, mu_new,z_new] = BayesianUpdate(l_vec, B_gamma, W, A, mu, z, q, 
 % Outputs:
 % --------
 % a_vec     - the updated estimate on the constrained parameter vector
+% posterior - a vector of function fit samples from the posterior distribution 
+% x         - a vecor 
+
+% REDACTED OUTPUTS%%
 % mu_new    - the updated matrix of means constituting the hyperparameters
 %             for the prior. These are used in the next iteration.
 % z_new     - the updated matrix of variances constituting the
@@ -37,19 +41,47 @@ function [a_vec, mu_new,z_new] = BayesianUpdate(l_vec, B_gamma, W, A, mu, z, q, 
 %             iteration.
 
 % use metropolis-hastings to sample the joint distribution and estimate the new mean and variance
-n_a_params = size(W,1)-1;
-pdf = @(x)max(likelihood(l_vec, B_gamma, x', W, A) * prior(x', mu, z, q), realmin); % pdf cannot be 0 for MCMC
-proppdf = @(x,y) mvnpdf(x);
-proprnd = @(x) mvnrnd(x, eye(n_a_params));
-
-% enforce the GBM prior in the posterior by updating the next mu and z.
-start = randn(1,n_a_params);
+n_as = size(priors,1);
+pdf = @(x)max(likelihood(l_vec, B_gamma, x', W, A) * prior(x', priors, prior_doms), realmin); % pdf cannot be 0 for MCMC
+proppdf = @(x,y) mvnpdf(y,x);
+proprnd = @(x) mvnrnd(x, eye(n_as));
 samples = mhsample(start, N_MCMC, 'pdf', pdf, 'proppdf', proppdf, 'proprnd', proprnd, 'burnin', N_burn);
-mu_new = [mu(:,1),mean(samples)'];
+
+% Use kernel density estimation to generate a smooth approximation of the
+% posterior
+posteriors = zeros([n_as,100]);
+posterior_doms = zeros([n_as,100]);
+for i = 1:n_as
+    [posteriors(i,:),posterior_doms(i,:)] = ksdensity(samples(:,i));
+end
+
+%samples = samples/1000;
+%mu_new = [mu(:,1),mean(samples)'];
 %mu_new = [mean(samples)',mean(samples)'];
-z_new = [z(:,1),var(samples)'];
+%z_new = [z(:,1),var(samples)'];
 %z_new = [var(samples)',var(samples)'];
-a_vec = mu_new(:,2);
+a_vec = sum(posteriors.*posterior_doms,2); % estimator is the mean given the posterior
+
+%{
+c = clock;
+fig1 = figure;
+histogram(samples(:,1))
+title('$P(\tilde{\vec{a}}_1 | \vec{l})$ ','interpreter','latex')
+saveas(fig1,fullfile('a1',[num2str(c),'.png']))
+close(fig1)
+
+fig2 = figure; 
+histogram(samples(:,2))
+title('$P(\tilde{\vec{a}}_2 | \vec{l})$ ','interpreter','latex')
+saveas(fig2,fullfile('a2',[num2str(c),'.png']))
+close(fig2)
+
+fig3 = figure; 
+histogram(samples(:,3))
+title('$P(\tilde{\vec{a}}_3 | \vec{l})$ ','interpreter','latex')
+saveas(fig3,fullfile('a3',[num2str(c),'.png']))
+close(fig3)
+%}
 
 end
 
@@ -92,8 +124,37 @@ if sum(isnan(p_l))>0
 end
 end
 
-function p_a = prior(a_vec,mu,z,q)
-% GBM prior on the parameters
+function p_a = prior(a_vec, priors, prior_doms)
+% Calculates the probability of observing a_vec given
+% a generalized probability density approximation for each parameter.
+% This prior assumes the parameters are independent.
+%
+% INPUTS:
+%   a_vec - An instance of the parameter vector with prior given by the
+%           other inputs (priors, prior_doms)
+%   priors - A matrix of dimensions [numel(a_vec),100]. The i'th row contains
+%            points on the i'th parameter's prior distribution.
+%   prior_doms - A matrix of dimensions [numel(a_vec),100]. Each row
+%           contains the domain points associated with points on the prior
+%           distribution.
+% OUTPUT:
+
+p_a_vec = zeros(size(a_vec));
+for i = 1:numel(a_vec)
+    p_a_vec(i) = interp1(prior_doms(i,:),priors(i,:),a_vec(i));
+end
+
+% handle numerically unstable cases
+if sum(isnan(p_a_vec))>0
+    p_a = 0;
+else
+    p_a = prod(p_a_vec);
+end
+end
+
+
+function p_a = GBM_prior(a_vec,mu,z,q)
+% Calculates the probabbility of observing a_vec given the GBM prior
 % ----------------------------------------------------------------
 % INPUTS:
 % ----------------------------------------------------------------

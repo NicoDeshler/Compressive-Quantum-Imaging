@@ -1,5 +1,5 @@
 
-gen_wavelet_sparse_img('db1',2,[4,4],
+[img,coeffs] = gen_wavelet_sparse_img('db1',1,[2,2],.5)
 
 function sample = sampleGBMPrior(q,mu,z)
     x1 = normrnd(mu(:,1),z(:,1));

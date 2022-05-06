@@ -90,6 +90,7 @@ for k = 1:size(F_stack,3)
     S_stack(:,:,k) = V'*sum(C.*dyad_stack,3)*V;
 end
 %}
+assert(ishermitian())
 
 % Remove added dimension if F was not a stack
 if ~is_stack

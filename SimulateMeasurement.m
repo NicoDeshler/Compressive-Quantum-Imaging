@@ -32,7 +32,7 @@ gt_rho = rho_wavelet_HG(A, gt_theta);
 % Get measurement projectors (eigenstates) and possible measurement
 % outcomes(eigenvalues) from the joint parameter represented in the HG
 % basis.
-[V,b] = eig(B_gamma,'vector');
+[V,~] = eig(B_gamma,'vector');
 
 % From the measurement projectors, get the probability distribution over
 % eigenvalues of B_gamma of observing B_gamma. This is the true likelihood
