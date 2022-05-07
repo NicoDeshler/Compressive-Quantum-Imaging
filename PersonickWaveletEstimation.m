@@ -33,6 +33,7 @@ gt_theta_vec = gt_theta_vec/(gt_theta_vec'*f_vec);
 
 % ground truth unconstrained parameter vector
 gt_aa_vec = W\gt_theta_vec;
+gt_a_vec = gt_aa_vec(1:end-1);
 
 % wavelet operators (pairs with theta_vec)
 A_i = A_stack_HG(img_dims,n_HG_modes,n_thetas,WaveletName,WaveletLevel);
@@ -41,15 +42,15 @@ A_i = A_stack_HG(img_dims,n_HG_modes,n_thetas,WaveletName,WaveletLevel);
 C_i = squeeze(sum(reshape(A_i,[size(A_i),1]).*reshape(W,[1,1,size(W)]),3));
 
 % photon collection variables
-N_iter = 10000;                     % number of photons collected per bayesian update iteration
-max_iter = 500;                     % number of Bayesian updates to perform
+N_iter = 100000;                    % number of photons collected per bayesian update iteration
+max_iter = 50;                      % number of Bayesian updates to perform
 
 % Metropolis-Hastings parameters
 n_MCMC = 10000;                   % number of MCMC samples of the posterior distribution
-n_burn = 1000;                     % number of MCMC burnin samples (number of samples discarded while Markov Chain converges to stationary distribution)
+n_burn = 3000;                     % number of MCMC burnin samples (number of samples discarded while Markov Chain converges to stationary distribution)
 
 % GBM prior parameters
-q = .1;                                         % fractional sparsity  (# zero-valued params/# params)
+q = .75;                                        % fractional sparsity  (# zero-valued params/# params)
 z_min = 0.001;                                  % min variance
 z_max = 1;                                      % max variance
 mu = zeros([n_thetas-1,2]);                     % means for gaussian mixture random variables
@@ -67,7 +68,6 @@ a_vec = zeros([n_as,1]);
 for i = 1:n_as
     % generate probability density estimate
     [GBM_priors(i,:), GBM_prior_doms(i,:)] = ksdensity(GBM_samples(i,:)); 
-    
     % sample the unconstrained parameter vector from the initial prior
     a_vec(i) = datasample(GBM_prior_doms(i,:), 1,'weights',GBM_priors(i,:));
 end
@@ -91,23 +91,42 @@ assert(ishermitian(B_gamma));
 
 %% Display Initialization Figures
 
-% Display input image
-imagesc(img);
+% display input image
+figure
+imagesc(img)
 title('Input Image')
-xticks((1:img_dims(1))-.5);
-yticks((1:img_dims(2))-.5);
+xticks((1:img_dims(1))-.5)
+yticks((1:img_dims(2))-.5)
 xticklabels({})
 yticklabels({})
 grid on
 axis('square')
 
+% display the W matrix
+figure
+imagesc(W)
+title('W matrix')
+axis('square')
+axis('off')
+
 % display ground truth wavelet coefficients
 figure;
-stem(gt_theta_vec)
-xlabel('Wavelet Linear Index')
-ylabel('Coefficient Value')
-title([WaveletName,' Decomposition'])
+stem(gt_theta_vec,'filled')
+xlim([-1,n_thetas+1])
+xlabel('Index $i$','interpreter','latex')
+ylabel('Wavelet Coeff $\theta_i$','interpreter','latex')
+title('Ground-Truth $\vec{\theta}$','interpreter','latex')
 
+% display ground truth unconstrained coefficients
+figure;
+stem(gt_a_vec,'filled')
+xlim([-1,n_as+1])
+xlabel('Index $i$','interpreter','latex')
+ylabel('Unconstrained Coeff $a_i$','interpreter','latex')
+title('Ground-Truth $\vec{a}$','interpreter','latex')
+
+
+%{
 % plot the wavelet decomposition tree
 figure;
 plotwavelet2(gt_theta_vec, wv_idx, WaveletLevel, WaveletName,16,'square')
@@ -118,25 +137,42 @@ xticklabels({})
 yticklabels({})
 grid on
 axis('square')
+%}
+
+%% Make video objects
+vid_a = VideoWriter('UnconstrainedParams.avi');
+vid_a.FrameRate = 1;
+open(vid_a)
+fig_a = figure(101);
+
+vid_post_a1 = VideoWriter('a1_posterior.avi');
+vid_post_a1.FrameRate = 1;
+open(vid_post_a1)
+fig_post_a1 = figure(102);
+
+vid_post_a2 = VideoWriter('a2_posterior.avi');
+vid_post_a2.FrameRate = 1;
+open(vid_post_a2)
+fig_post_a2 = figure(103);
+
+vid_post_a3 = VideoWriter('a3_posterior.avi');
+vid_post_a3.FrameRate = 1;
+open(vid_post_a3)
+fig_post_a3 = figure(104);
+
 
 %% Run Adaptive Bayesian Inference Algorithm 
-% make video
-v = VideoWriter('UnconstrainedCoeffs.avi');
-v.FrameRate = 1;
-open(v)
-figure
-
 % make coefficient convergence stack
-theta_evo = zeros(n_thetas, max_iter);
+a_evo = zeros(n_as, max_iter);
 
 % Bayesian Update
 priors = GBM_priors;
 prior_doms = GBM_prior_doms;
 
-
-N_collected = 0;                                % number of photons collected
+N_collected = 0;     % number of photons collected
 iter = 1;
 while iter <= max_iter
+     
     % simulate a measurement
     l_vec = SimulateMeasurement(B_gamma, N_iter, A_i, gt_theta_vec);
     
@@ -145,7 +181,6 @@ while iter <= max_iter
     [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec,B_gamma, W,...
                                           A_i, priors, prior_doms, n_MCMC, n_burn, MCMC_start);
     aa_vec = [a_vec ; 1];
-    theta_vec = W*aa_vec;
 
     % compute the variances and the means from the posteriors
     a_mu = sum(posteriors.*posterior_doms,2);
@@ -157,15 +192,6 @@ while iter <= max_iter
     % iteration
     priors = posteriors;
     prior_doms = posterior_doms;
-    
-
-    %{
-    % get mean and variance of the augmented parameter vector
-    a_mu = mu*[q;(1-q)];                          % expected value of a_vec under GBM prior
-    aa_mu = [a_mu; 1];
-    a_var = (z + mu.^2)*[q;(1-q)] - a_mu.^2;      % variance of a_vec under GBM prior  
-    aa_var = [a_var; 0];
-    %}
     
     % compute Gamma_0 and Gamma_i1
     Gamma_0 = Gamma_0_HG(A_i,W,aa_mu);
@@ -182,12 +208,47 @@ while iter <= max_iter
     
     % update the joint parameter estimator (measurement matrix) 
     B_gamma = SLD_eval(Gamma_1,Gamma_0);
-    assert(ishermitian(B_gamma));
         
     % update the number of photons
     N_collected = N_collected + N_iter;
     
-    %{
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Write figures to video objects
+    figure(fig_a)
+    stem(a_vec,'filled')
+    xlim([-1,n_as+1])
+    xlabel('Index $i$','interpreter','latex')
+    ylabel('Unconstrained Coeff $a_i$','interpreter','latex')
+    title('Estimate $\hat{a}$','interpreter','latex')
+    frame = getframe(fig_a);
+    writeVideo(vid_a,frame)
+    
+    figure(fig_post_a1)
+    plot(posterior_doms(1,:),posteriors(1,:))
+    xlabel('$a_1$','interpreter','latex')
+    ylabel('$P(a_1|\vec{l})$','interpreter','latex')
+    title('Posterior $a_1$','interpreter','latex')
+    frame = getframe(fig_post_a1);
+    writeVideo(vid_post_a1,frame)
+    
+    figure(fig_post_a2)
+    plot(posterior_doms(2,:),posteriors(2,:))
+    xlabel('$a_2$','interpreter','latex')
+    ylabel('$P(a_2|\vec{l})$','interpreter','latex')
+    title('Posterior $a_2$','interpreter','latex')
+    frame = getframe(fig_post_a2);
+    writeVideo(vid_post_a2,frame)
+    
+    figure(fig_post_a3)
+    plot(posterior_doms(3,:),posteriors(3,:))
+    xlabel('$a_3$','interpreter','latex')
+    ylabel('$P(a_3|\vec{l})$','interpreter','latex')
+    title('Posterior $a_3$','interpreter','latex')
+    frame = getframe(fig_post_a3);
+    writeVideo(vid_post_a3,frame)
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  
+     %{
     % display diagonalized measurement matrix (projections in HG modes)
     [U,D] = eig(U);
     imagesc(B_gamma)
@@ -197,16 +258,6 @@ while iter <= max_iter
     %}
     
     %{
-    stem(aa_vec,'filled')
-    xlabel('Linear Index')
-    ylabel('Coefficient Magnitude')
-    title(['$\hat{a}^{[',num2str(iter),']}$'],'interpreter','latex')
-    drawnow
-    frame = getframe(gcf);
-    writeVideo(v,frame)
-    %}
-  
-    
     stem(theta_vec,'filled')
     xlabel('Wavelet Linear Index')
     ylabel('Coefficient Value')
@@ -214,15 +265,21 @@ while iter <= max_iter
     drawnow
     frame = getframe(gcf);
     writeVideo(v,frame)
+    %}
     
     
     % update theta evolution stack (each time step is a new column)
-    theta_evo(:,iter) = theta_vec;
+    a_evo(:,iter) = a_vec;
     
     % update iteration index
     iter = iter + 1;
 end
-close(v)
+
+% close video objects
+close(vid_a)
+close(vid_post_a1)
+close(vid_post_a2)
+close(vid_post_a3)
 
 % Compare output to ground truth wavelet coefficients
 diff = gt_theta_vec - theta_vec;
@@ -241,11 +298,11 @@ yticklabels({})
 grid on
 
 
-figure()
-imagesc(theta_evo)
+figure
+imagesc(a_evo)
 title('Parameter Convergence')
-xlabel('iteration')
-ylabel('$\theta_i$','interpreter','latex')
+xlabel('Iteration')
+ylabel('$a_i$','interpreter','latex')
 xticks(5:5:max_iter)
 yticks(1:n_thetas)
 

@@ -55,32 +55,15 @@ for i = 1:n_as
     [posteriors(i,:),posterior_doms(i,:)] = ksdensity(samples(:,i));
 end
 
-%samples = samples/1000;
-%mu_new = [mu(:,1),mean(samples)'];
-%mu_new = [mean(samples)',mean(samples)'];
-%z_new = [z(:,1),var(samples)'];
-%z_new = [var(samples)',var(samples)'];
-a_vec = sum(posteriors.*posterior_doms,2); % estimator is the mean given the posterior
+% estimator is the mean given the posterior
+a_vec = sum(posteriors.*posterior_doms,2); 
 
 %{
-c = clock;
-fig1 = figure;
-histogram(samples(:,1))
-title('$P(\tilde{\vec{a}}_1 | \vec{l})$ ','interpreter','latex')
-saveas(fig1,fullfile('a1',[num2str(c),'.png']))
-close(fig1)
-
-fig2 = figure; 
-histogram(samples(:,2))
-title('$P(\tilde{\vec{a}}_2 | \vec{l})$ ','interpreter','latex')
-saveas(fig2,fullfile('a2',[num2str(c),'.png']))
-close(fig2)
-
-fig3 = figure; 
-histogram(samples(:,3))
-title('$P(\tilde{\vec{a}}_3 | \vec{l})$ ','interpreter','latex')
-saveas(fig3,fullfile('a3',[num2str(c),'.png']))
-close(fig3)
+samples = samples/1000;
+mu_new = [mu(:,1),mean(samples)'];
+mu_new = [mean(samples)',mean(samples)'];
+z_new = [z(:,1),var(samples)'];
+z_new = [var(samples)',var(samples)'];
 %}
 
 end

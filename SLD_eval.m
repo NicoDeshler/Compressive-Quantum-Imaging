@@ -8,9 +8,9 @@ function S_stack = SLD_eval(F_stack, R)
 % Inputs:
 % --------
 % F_stack   - A stack of matrices corresponding to the operator F in the
-% implicit SLD equation
+%           implicit SLD equation
 % R         - A matrix corresponding to the operator R in the implicit SLD
-% equation
+%           equation
 % --------
 % Outputs:
 % --------
@@ -33,7 +33,7 @@ end
 % Get the eigenvectors/values of R
 [V, d] = eig(R,'vector');
 
-% Loop method (slow but works)
+
 S_stack = zeros(size(F_stack));
 for i = 1:size(F_stack,1)
     for j = 1:size(F_stack,2)
@@ -45,6 +45,15 @@ for i = 1:size(F_stack,1)
     end
 end
 
+% Average each output the matrix with its Hermitian conjugate for numerical stability
+for k = 1:size(F_stack,3) 
+    S_stack(:,:,k) = 1/2 * (S_stack(:,:,k) + S_stack(:,:,k)');
+end
+
+% check that the output is Hermitian
+for j =1:size(S_stack,3)
+    assert(ishermitian(S_stack(:,:,j)),['Matrix ',num2str(j),' in S_stack is not Hermitian']);
+end
 
 
 %{
@@ -68,29 +77,7 @@ for i = 1:tan_space_dim
     v = v/norm(v);
     V = [V,v];
 end
-
 %} 
-
-
-%{
-% Fast matrix method (might be wrong - compare output to loop method!)
-for k = 1:size(F_stack,3)
-    F = F_stack(:,:,k);
-    D1 = repmat(d,[1,numel(d)]);
-    D2 = D1';
-    eigval_pairs = D1+D2;
-    eigval_pairs(eigval_pairs~=0) = 1./eigval_pairs(eigval_pairs ~= 0); 
-    F_proj = V'*F*V;    
-    dyads = mat2cell(V(:)*V(:)',size(V),size(V));
-    
-    dyad_stack = cellfun(@(x)reshape(x,[1,1,[]]),dyads,'un',0);
-    dyad_stack = cell2mat(dyad_stack);
-    dyads_stack = squeeze(permute(dyads_stack,[3,4,2,1]));
-    C = reshape(eigval_pairs(:)*F_proj(:),[1,1,numel(V)]);
-    S_stack(:,:,k) = V'*sum(C.*dyad_stack,3)*V;
-end
-%}
-assert(ishermitian())
 
 % Remove added dimension if F was not a stack
 if ~is_stack
