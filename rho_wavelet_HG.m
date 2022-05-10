@@ -16,5 +16,4 @@ function rho_1 = rho_wavelet_HG(A, theta_vec)
 % rho_1         - The density matrix with dimensions equal to A(:,:,1)
 
 rho_1 = sum(reshape(theta_vec,1,1,numel(theta_vec)).*A,3);
-rho_1 = rho_1/trace(rho_1);             % artificially make density matrix trace 1
 end

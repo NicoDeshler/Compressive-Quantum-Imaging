@@ -44,10 +44,15 @@ gt_rho = rho_wavelet_HG(A, gt_theta);
 
 p_outcomes = diag(V'*gt_rho*V);
 
-% updates for numerical stability
+% take absolute value for numerical stability
 p_outcomes = abs(p_outcomes);
-p_outcomes = p_outcomes/sum(p_outcomes);
 
+% include the outcome probability for modes greater the N_HG_modes
+p_outcomes = [p_outcomes; max(0,1-sum(p_outcomes))];
+
+% normalize probability
+p_outcomes = p_outcomes/sum(p_outcomes);
+    
 %% Generate samples from the likelihood
 % sample the indices of each outcome from the discrete distribution
 % p_outcomes associated with the measurement

@@ -14,14 +14,15 @@ function [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, W,
 % --------
 % Inputs:
 % --------
-% l_vec     - 
+% l_vec     - The measurement vector containing the number of photons in
+% ea            each eigenstate of the joint parameter estimator B_gamma.
 % B_gamma   - the joint parameter estimator used to collect the measurement
 % A         - a stack of wavelet operators
-% mu        - a Nx2 matrix containing the means of the GBM prior for
-%             each parameter
-% z         - a Nx2 matrix containing the variances of the GBM prior for
-%             each parameter
-% q         - sparsity toggle for the prior
+% priors    - A matrix of dimensions [numel(a_vec),100]. The i'th row contains
+%             points on the i'th parameter's prior distribution.
+% prior_doms- A matrix of dimensions [numel(a_vec),100]. Each row
+%             contains the domain points associated with points on the prior
+%             distribution.
 % N_MCMC    - number of Metropolis-Hastings MCMC samples used to compute
 %             approximate the posterior.
 % N_burn    - number of Metropolis-Hasting MCMC samples to discard in order
@@ -29,9 +30,12 @@ function [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, W,
 % --------
 % Outputs:
 % --------
-% a_vec     - the updated estimate on the constrained parameter vector
-% posterior - a vector of function fit samples from the posterior distribution 
-% x         - a vecor 
+% a_vec             - the updated estimate on the constrained parameter vector
+% posteriors        - A matrix of dimensions [numel(a_vec),100]. The i'th row contains
+%                     points on the i'th parameter's posterior distribution. 
+% posterior_domains - A matrix of dimensions [numel(a_vec),100]. Each row
+%                     contains the domain points associated with points on
+%                     the posterior distribution. 
 
 % REDACTED OUTPUTS%%
 % mu_new    - the updated matrix of means constituting the hyperparameters
@@ -91,13 +95,22 @@ end
 
 % get the density matrix
 aa_vec = [a_vec;1];
-theta_vec = W\aa_vec;
+theta_vec = W*aa_vec;
 rho = rho_wavelet_HG(A,theta_vec);
 
 % get the probabilities of each measurement outcome
 [V,~] = eig(B_gamma);
 p_outcomes = diag(V'*rho*V);
 
+% take asbolute value for numerical stability
+p_outcomes = abs(p_outcomes);
+
+% include the outcome probability for modes greater the N_HG_modes
+p_outcomes = [p_outcomes; max(0,1-sum(p_outcomes))];
+
+% normalize probability
+p_outcomes = p_outcomes/sum(p_outcomes);
+    
 % Likelihood is a multinomial
 p_l = mnpdf(l_vec, p_outcomes);
 

@@ -15,6 +15,7 @@ N_HG_modes = n_HG_modes*(n_HG_modes+1)/2;% total number of Hermite-Gauss modes c
 WaveletName = 'db1';                   % wavelet type
 WaveletLevel = 1;                      % wavelet decomposition level (complete decomp)
 [gt_theta_vec, wv_idx] = wavedec2(img,WaveletLevel,WaveletName);                 % ground truth wavelet coefficients
+gt_theta_vec = gt_theta_vec';
 n_thetas = numel(gt_theta_vec);        % number of wavelet coefficients
 n_as = n_thetas-1;                     % number of unconstrained parameters 
 
@@ -26,17 +27,20 @@ ff_vec = f_vec/(f_vec'*f_vec);                                              % wa
 % W matrix for transforming a_vec into theta_vec
 W = W_matrix(n_thetas, ff_vec);
 
-% normalize ground truth parameters to make scene intensity a distribution
-% (density operator trace 1)
-gt_theta_vec = gt_theta_vec';
-gt_theta_vec = gt_theta_vec/(gt_theta_vec'*f_vec);
-
 % ground truth unconstrained parameter vector
 gt_aa_vec = W\gt_theta_vec;
 gt_a_vec = gt_aa_vec(1:end-1);
 
 % wavelet operators (pairs with theta_vec)
 A_i = A_stack_HG(img_dims,n_HG_modes,n_thetas,WaveletName,WaveletLevel);
+
+% normalize wavelet operators so that [tr(A1), tr(A2),...,tr(AN)] = f_vec
+for i = 1:n_thetas
+    if f_vec(i) ~= 0
+       A_i(:,:,i) = A_i(:,:,i)/trace(A_i(:,:,i)) * f_vec(i);
+    end
+end
+
 
 % transformed wavelet operators (pairs with aa_vec)
 C_i = squeeze(sum(reshape(A_i,[size(A_i),1]).*reshape(W,[1,1,size(W)]),3));
@@ -50,17 +54,17 @@ n_MCMC = 10000;                   % number of MCMC samples of the posterior dist
 n_burn = 3000;                     % number of MCMC burnin samples (number of samples discarded while Markov Chain converges to stationary distribution)
 
 % GBM prior parameters
-q = .75;                                        % fractional sparsity  (# zero-valued params/# params)
-z_min = 0.001;                                  % min variance
-z_max = 1;                                      % max variance
+q = .25;                                        % fractional sparsity  K/N = (# non-zero params/ # params)
+z_min = 1;                                  % min variance
+z_max = 10;                                      % max variance
 mu = zeros([n_thetas-1,2]);                     % means for gaussian mixture random variables
 z = [z_min*ones([n_as,1]),z_max*ones([n_as,1])];    % variances for gaussian mixture randomv variables
 
 % Generate samples of GBM prior for creating probability density estimate
-x1 = mvnrnd(mu(:,1),diag(z(:,1)),n_MCMC)';
-x2 = mvnrnd(mu(:,2),diag(z(:,2)),n_MCMC)';
+x0 = mvnrnd(mu(:,1),diag(z(:,1)),n_MCMC)';
+x1 = mvnrnd(mu(:,2),diag(z(:,2)),n_MCMC)';
 coinflips = binornd(1,q,[n_as,n_MCMC]);
-GBM_samples = coinflips.*x1 + ~coinflips.*x2;
+GBM_samples = ~coinflips.*x0 + coinflips.*x1;
 
 GBM_priors = zeros(n_as,100);
 GBM_prior_doms = zeros(n_as,100);
@@ -77,7 +81,7 @@ aa_vec = [a_vec; 1];                           % augmented unconstrained paramet
 %{
 % Sample the unconstrained parameter vector from the prior
 a_vec(i) = datasample(GBM_prior_doms(:,i), N_photons,'weights',GBM_priors(:,i))';
-a_vec = coinflips.*x1 + ~coinflips.*x2;        % unconstrained parameter vector
+a_vec = ~coinflips.*x1 + coinflips.*x2;        % unconstrained parameter vector
 aa_vec = [a_vec; 1];                           % augmented unconstrained parameter vector
 %}   
 
