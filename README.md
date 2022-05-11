@@ -8,12 +8,12 @@ This package unifies ideas from compressive sensing and quantum parameter estima
 Our algorithm employs Spatial Mode Demultiplexing (SPADE) detailed in [Reference 3](https://iopscience.iop.org/article/10.1088/1367-2630/aa60ee) to decompose the optical field at the focal plane of the imaging system into the Hermite-Gauss modes. Our quantum measurement consists of counting the number of photons that appear in each mode.
 
 
-$ asdfasdf $
+# Algorithm Features
 
 - Employs pre-detection spatial mode sorting to outperform direct imaging
 - Parameters to be estimated are surrogates to the wavelet coefficients of the image related by a linear transformation that preserves the trace 1 norm of the density operator describing the image state quantum mechanically.
-- Uses adaptive Bayesian framework predicated on Personick quantum parameter estimation theory to update joint measurement operator
-- Sparsity prior imposed on the desired parameters
+- Uses adaptive Bayesian framework founded on Personick quantum parameter estimation theory to update joint measurement operator
+- Sparsity prior imposed on the surrogate coefficients
 - Markov-Chain-Monte-Carlo methods used to sample from the posterior distribution
 
 
