@@ -1,5 +1,8 @@
 # Compressive Subdiffraction Quantum Imaging
 
+[The Paper](https://www.overleaf.com/read/pffyxrhkqvfw) can be found here.
+
+
 This package unifies ideas from compressive sensing and quantum parameter estimation to passively image incoherent distributed scenes at subdiffraction resolutions.
 
 
@@ -8,4 +11,10 @@ This package unifies ideas from compressive sensing and quantum parameter estima
 - Uses adaptive Bayesian framework predicated on Personick quantum parameter estimation theory to update joint measurement operator
 - Sparsity prior imposed on the desired parameters
 - Markov-Chain-Monte-Carlo methods used to sample from the posterior distribution
-- 
+
+
+# References
+1)
+2)
+3)
+4)
