@@ -1,4 +1,4 @@
-# Compressive-Quantum-Imaging
+Compressive Subdiffraction Quantum Imaging
 
 This package unifies ideas in compressive sensing and quantum parameter estimation to achieve a generalized multi-level superresolution imaging algorithm for incoherent distributed scenes.
 

@@ -1,5 +1,5 @@
 
-[img,coeffs] = gen_wavelet_sparse_img('db1',1,[2,2],.5)
+[img,coeffs] = gen_wavelet_sparse_img('db1',1,[4,4],.25);
 
 function sample = sampleGBMPrior(q,mu,z)
     x1 = normrnd(mu(:,1),z(:,1));
@@ -27,7 +27,7 @@ function [img_sparse, ws] =  gen_wavelet_sparse_img(WaveletName,WaveletLevel,img
     [C,S] = wavedec2(img,WaveletLevel,WaveletName);
     ws = C;                       % sparsified wavelet coefficient vector
     [~,sort_idx] = sort(abs(ws),'descend');
-    K = floor((1-q)*numel(C));
+    K = floor(q*numel(C));
     ws(sort_idx(K+1:end)) = 0;
     img_sparse = waverec2(ws,S,WaveletName);
 end

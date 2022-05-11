@@ -1,19 +1,23 @@
 % INITIALIZATION
 
-%load('db1_4sparse_4x4_img.mat');       % load in image
-load('db1_2sparse_2x2_img.mat');       
+load('db1_4sparse_4x4_img.mat');       % load in image
+%load('db1_2sparse_2x2_img.mat');       
 
 % Image variables
 img_dims = size(img);                  % image dimension vector [y pixels, x pixels]
 img = img/sum(img,'all');             % normalized scene intensity distribution 
 
+% Imaging system (Gaussian PSF)
+sigma_x = 1;    % PSF width along x
+sigma_y = 1;    % PSF width along y
+
 % HG mode state space representation
-n_HG_modes = 4;                        % max number of 1D Hermite-Gauss modes to consider
+n_HG_modes = 8;                        % max number of 1D Hermite-Gauss modes to consider
 N_HG_modes = n_HG_modes*(n_HG_modes+1)/2;% total number of Hermite-Gauss modes considered
 
 % Wavelet decomposition
 WaveletName = 'db1';                   % wavelet type
-WaveletLevel = 1;                      % wavelet decomposition level (complete decomp)
+WaveletLevel = 2;                      % wavelet decomposition level (complete decomp)
 [gt_theta_vec, wv_idx] = wavedec2(img,WaveletLevel,WaveletName);                 % ground truth wavelet coefficients
 gt_theta_vec = gt_theta_vec';
 n_thetas = numel(gt_theta_vec);        % number of wavelet coefficients
@@ -47,16 +51,16 @@ C_i = squeeze(sum(reshape(A_i,[size(A_i),1]).*reshape(W,[1,1,size(W)]),3));
 
 % photon collection variables
 N_iter = 100000;                    % number of photons collected per bayesian update iteration
-max_iter = 50;                      % number of Bayesian updates to perform
+max_iter = 500;                      % number of Bayesian updates to perform
 
 % Metropolis-Hastings parameters
 n_MCMC = 10000;                   % number of MCMC samples of the posterior distribution
 n_burn = 3000;                     % number of MCMC burnin samples (number of samples discarded while Markov Chain converges to stationary distribution)
 
 % GBM prior parameters
-q = .25;                                        % fractional sparsity  K/N = (# non-zero params/ # params)
-z_min = 1;                                  % min variance
-z_max = 10;                                      % max variance
+q = 1/4;                                       % fractional sparsity  K/N = (# non-zero params/ # params)
+z_min = 1;                                      % min variance
+z_max = 10;                                     % max variance
 mu = zeros([n_thetas-1,2]);                     % means for gaussian mixture random variables
 z = [z_min*ones([n_as,1]),z_max*ones([n_as,1])];    % variances for gaussian mixture randomv variables
 
@@ -77,14 +81,6 @@ for i = 1:n_as
 end
 aa_vec = [a_vec; 1];                           % augmented unconstrained parameter vector
 
-
-%{
-% Sample the unconstrained parameter vector from the prior
-a_vec(i) = datasample(GBM_prior_doms(:,i), N_photons,'weights',GBM_priors(:,i))';
-a_vec = ~coinflips.*x1 + coinflips.*x2;        % unconstrained parameter vector
-aa_vec = [a_vec; 1];                           % augmented unconstrained parameter vector
-%}   
-
 % initialize the wavelet vector estimator
 theta_vec = W*aa_vec;                           % wavelet vector estimator
                      
@@ -96,7 +92,7 @@ assert(ishermitian(B_gamma));
 %% Display Initialization Figures
 
 % display input image
-figure
+figure(111)
 imagesc(img)
 title('Input Image')
 xticks((1:img_dims(1))-.5)
@@ -107,14 +103,20 @@ grid on
 axis('square')
 
 % display the W matrix
-figure
+figure(112)
 imagesc(W)
+title('Parameter Transform Matrix')
+caxis([min(W(:)),max(W(:))])
+yticks([])
+xticks(1:5)
+xticklabels({'w_1','w_2','w_3','f'})
+axis 'square'
 title('W matrix')
 axis('square')
 axis('off')
 
 % display ground truth wavelet coefficients
-figure;
+figure(113)
 stem(gt_theta_vec,'filled')
 xlim([-1,n_thetas+1])
 xlabel('Index $i$','interpreter','latex')
@@ -122,7 +124,7 @@ ylabel('Wavelet Coeff $\theta_i$','interpreter','latex')
 title('Ground-Truth $\vec{\theta}$','interpreter','latex')
 
 % display ground truth unconstrained coefficients
-figure;
+figure(114)
 stem(gt_a_vec,'filled')
 xlim([-1,n_as+1])
 xlabel('Index $i$','interpreter','latex')
@@ -144,25 +146,30 @@ axis('square')
 %}
 
 %% Make video objects
-vid_a = VideoWriter('UnconstrainedParams.avi');
-vid_a.FrameRate = 1;
-open(vid_a)
-fig_a = figure(101);
+make_videos = 0;
 
-vid_post_a1 = VideoWriter('a1_posterior.avi');
-vid_post_a1.FrameRate = 1;
-open(vid_post_a1)
-fig_post_a1 = figure(102);
+if make_videos
 
-vid_post_a2 = VideoWriter('a2_posterior.avi');
-vid_post_a2.FrameRate = 1;
-open(vid_post_a2)
-fig_post_a2 = figure(103);
+    vid_a = VideoWriter('UnconstrainedParams.avi');
+    vid_a.FrameRate = 1;
+    open(vid_a)
+    fig_a = figure(101);
 
-vid_post_a3 = VideoWriter('a3_posterior.avi');
-vid_post_a3.FrameRate = 1;
-open(vid_post_a3)
-fig_post_a3 = figure(104);
+    vid_post_a1 = VideoWriter('a1_posterior.avi');
+    vid_post_a1.FrameRate = 1;
+    open(vid_post_a1)
+    fig_post_a1 = figure(102);
+
+    vid_post_a2 = VideoWriter('a2_posterior.avi');
+    vid_post_a2.FrameRate = 1;
+    open(vid_post_a2)
+    fig_post_a2 = figure(103);
+
+    vid_post_a3 = VideoWriter('a3_posterior.avi');
+    vid_post_a3.FrameRate = 1;
+    open(vid_post_a3)
+    fig_post_a3 = figure(104);
+end
 
 
 %% Run Adaptive Bayesian Inference Algorithm 
@@ -216,83 +223,66 @@ while iter <= max_iter
     % update the number of photons
     N_collected = N_collected + N_iter;
     
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % Write figures to video objects
-    figure(fig_a)
-    stem(a_vec,'filled')
-    xlim([-1,n_as+1])
-    xlabel('Index $i$','interpreter','latex')
-    ylabel('Unconstrained Coeff $a_i$','interpreter','latex')
-    title('Estimate $\hat{a}$','interpreter','latex')
-    frame = getframe(fig_a);
-    writeVideo(vid_a,frame)
-    
-    figure(fig_post_a1)
-    plot(posterior_doms(1,:),posteriors(1,:))
-    xlabel('$a_1$','interpreter','latex')
-    ylabel('$P(a_1|\vec{l})$','interpreter','latex')
-    title('Posterior $a_1$','interpreter','latex')
-    frame = getframe(fig_post_a1);
-    writeVideo(vid_post_a1,frame)
-    
-    figure(fig_post_a2)
-    plot(posterior_doms(2,:),posteriors(2,:))
-    xlabel('$a_2$','interpreter','latex')
-    ylabel('$P(a_2|\vec{l})$','interpreter','latex')
-    title('Posterior $a_2$','interpreter','latex')
-    frame = getframe(fig_post_a2);
-    writeVideo(vid_post_a2,frame)
-    
-    figure(fig_post_a3)
-    plot(posterior_doms(3,:),posteriors(3,:))
-    xlabel('$a_3$','interpreter','latex')
-    ylabel('$P(a_3|\vec{l})$','interpreter','latex')
-    title('Posterior $a_3$','interpreter','latex')
-    frame = getframe(fig_post_a3);
-    writeVideo(vid_post_a3,frame)
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  
-     %{
-    % display diagonalized measurement matrix (projections in HG modes)
-    [U,D] = eig(U);
-    imagesc(B_gamma)
-    xlabel('Measurement Projectors (Columns)')
-    ylabel('HG Mode')
-    title(['$B_{\gamma}^{[',num2str(iter),']}$'],'interpreter','latex')
-    %}
-    
-    %{
-    stem(theta_vec,'filled')
-    xlabel('Wavelet Linear Index')
-    ylabel('Coefficient Value')
-    title(['$\hat{\theta}^{[',num2str(iter),']}$'],'interpreter','latex')
-    drawnow
-    frame = getframe(gcf);
-    writeVideo(v,frame)
-    %}
-    
-    
     % update theta evolution stack (each time step is a new column)
     a_evo(:,iter) = a_vec;
     
     % update iteration index
     iter = iter + 1;
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Write figures to video objects
+    if make_videos
+        figure(fig_a)
+        stem(a_vec,'filled')
+        xlim([-1,n_as+1])
+        xlabel('Index $i$','interpreter','latex')
+        ylabel('Unconstrained Coeff $a_i$','interpreter','latex')
+        title('Estimate $\hat{a}$','interpreter','latex')
+        frame = getframe(fig_a);
+        writeVideo(vid_a,frame)
+
+        figure(fig_post_a1)
+        plot(posterior_doms(1,:),posteriors(1,:))
+        xlabel('$a_1$','interpreter','latex')
+        ylabel('$P(a_1|\vec{l})$','interpreter','latex')
+        title('Posterior $a_1$','interpreter','latex')
+        frame = getframe(fig_post_a1);
+        writeVideo(vid_post_a1,frame)
+
+        figure(fig_post_a2)
+        plot(posterior_doms(2,:),posteriors(2,:))
+        xlabel('$a_2$','interpreter','latex')
+        ylabel('$P(a_2|\vec{l})$','interpreter','latex')
+        title('Posterior $a_2$','interpreter','latex')
+        frame = getframe(fig_post_a2);
+        writeVideo(vid_post_a2,frame)
+
+        figure(fig_post_a3)
+        plot(posterior_doms(3,:),posteriors(3,:))
+        xlabel('$a_3$','interpreter','latex')
+        ylabel('$P(a_3|\vec{l})$','interpreter','latex')
+        title('Posterior $a_3$','interpreter','latex')
+        frame = getframe(fig_post_a3);
+        writeVideo(vid_post_a3,frame)
+    end
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end
 
 % close video objects
-close(vid_a)
-close(vid_post_a1)
-close(vid_post_a2)
-close(vid_post_a3)
+if make_videos
+    close(vid_a)
+    close(vid_post_a1)
+    close(vid_post_a2)
+    close(vid_post_a3)
+end
 
 % Compare output to ground truth wavelet coefficients
 diff = gt_theta_vec - theta_vec;
 
-
 % image estimate
 img_out = waverec2(theta_vec,wv_idx,WaveletName);
 
-figure;
+figure(115);
 imagesc(img_out);
 title('Image Estimate')
 xticks((1:img_dims(1))-.5);
@@ -300,15 +290,16 @@ yticks((1:img_dims(2))-.5);
 xticklabels({})
 yticklabels({})
 grid on
+axis 'square'
 
-
-figure
+figure(116)
 imagesc(a_evo)
 title('Parameter Convergence')
 xlabel('Iteration')
 ylabel('$a_i$','interpreter','latex')
 xticks(5:5:max_iter)
 yticks(1:n_thetas)
+colorbar
 
 
 
