@@ -1,4 +1,5 @@
-function Gamma_1 = Gamma_1_HG(A,W,h,aa_mu,aa_var)
+%function Gamma_1 = Gamma_1_HG(A,W,h,aa_mu,aa_var)
+function Gamma_1 = Gamma_1_HG(C,h,aa_mu,aa_var)
 % Computes the 1th-index Personick Operator represented in the
 % Hermite-Gauss basis for a scene described via a wavelet transform.
 % This operator is used for solving the equation:
@@ -21,24 +22,15 @@ function Gamma_1 = Gamma_1_HG(A,W,h,aa_mu,aa_var)
 % --------
 % Outputs:
 % --------
-% Gamma_1 - A matrix with dimensions equal to size(A(:,:,1))
+% Gamma_1 - A matrix with dimensions equal to size(C(:,:,1))
 
 % get the matrix E[a_i a_j] of expected values for pair-wise parameter 
 % products
 M = diag(aa_var) + aa_mu*aa_mu';
 
-% Transform the wavelet operator stack A with W to define a new linear 
-% combination of operators. We treat the operator stack as a 'vector' of 
-% operators such that C = [C_1,C_2,...,C_N]^T = W^T [A_1, A_2, ... , A_N]^T;
+% intermediate vector
+x = M*h;
 
-C = squeeze(sum(reshape(A,[size(A),1]).*reshape(W,[1,1,size(W)]),3));
-
-% compute Gamma_1
-Gamma_1 = zeros(size(A(:,:,1)));
-for i = 1:size(M,1)
-    for j = 1:size(M,2)
-        Gamma_1 = Gamma_1 + C(:,:,i)*M(i,j)*h(j);
-    end
-end
-
+% take inner product
+Gamma_1 = MatMulVecOp(x',C);
 end

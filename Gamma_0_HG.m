@@ -1,4 +1,4 @@
-function Gamma_0 = Gamma_0_HG(A,W,aa_mu)
+function Gamma_0 = Gamma_0_HG(C,aa_mu)
 % Computes the 0th-index Personick Operator represented in the
 % Hermite-Gauss basis for a scene described via a wavelet transform.
 % This operator is used for solving the equation:
@@ -11,11 +11,7 @@ function Gamma_0 = Gamma_0_HG(A,W,aa_mu)
 % --------
 % Inputs:
 % --------
-% A - A stack of matrices containing the OTF projectors after a wavelet
-%     transform represented in the HG basis.
-% W - the transformation matrix that takes a_vec to theta_vec where a_vec
-%     contains a list of unconstrained (yet lower dimensional) parameters
-%     and theta_vec contains (constrained) wavelet coefficients
+% C     - the transformed wavelet operators
 % aa_mu - a vector containing the expected values of the parameters in the
 % augmented parameter a_vec given the prior.
 %
@@ -23,7 +19,7 @@ function Gamma_0 = Gamma_0_HG(A,W,aa_mu)
 % Outputs:
 % --------
 % Gamma_0 - A matrix with dimensions equal to size(A(:,:,1))
-theta_mu = W * aa_mu;
-Gamma_0 = sum(A.*reshape(theta_mu,1,1,numel(theta_mu)),3); % Equals sum_j E[theta_j]*A_j
 
-
+Gamma_0 = MatMulVecOp(aa_mu',C);
+    
+end

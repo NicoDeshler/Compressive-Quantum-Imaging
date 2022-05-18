@@ -27,7 +27,7 @@ function l_vec = SimulateMeasurement(B_gamma, N_photons, A, gt_theta)
 
 % compute the ground truth density matrix using the ground truth wavelet
 % parameters
-gt_rho = rho_wavelet_HG(A, gt_theta);
+gt_rho = rho_theta_HG(gt_theta, A);
 
 % Get measurement projectors (eigenstates) and possible measurement
 % outcomes(eigenvalues) from the joint parameter represented in the HG

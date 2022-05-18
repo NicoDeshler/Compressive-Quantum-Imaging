@@ -1,5 +1,5 @@
 % Bayesian update for the posterior
-function [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, W, A, priors, prior_doms, N_MCMC, N_burn, start)
+function [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, C, priors, prior_doms, N_MCMC, N_burn, start)
 % Updates the estimate for the constrained parameter vector a_vec using a
 % Bayesian inference scheme. The hyperparameters for the prior are also
 % updated to serve the subsequeny iteration. The Likelihood is computed 
@@ -15,9 +15,9 @@ function [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, W,
 % Inputs:
 % --------
 % l_vec     - The measurement vector containing the number of photons in
-% ea            each eigenstate of the joint parameter estimator B_gamma.
+%             each eigenstate of the joint parameter estimator B_gamma.
 % B_gamma   - the joint parameter estimator used to collect the measurement
-% A         - a stack of wavelet operators
+% C         - a stack of the transformed wavelet operators C =  W * A
 % priors    - A matrix of dimensions [numel(a_vec),100]. The i'th row contains
 %             points on the i'th parameter's prior distribution.
 % prior_doms- A matrix of dimensions [numel(a_vec),100]. Each row
@@ -46,7 +46,7 @@ function [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, W,
 
 % use metropolis-hastings to sample the joint distribution and estimate the new mean and variance
 n_as = size(priors,1);
-pdf = @(x)max(likelihood(l_vec, B_gamma, x', W, A) * prior(x', priors, prior_doms), realmin); % pdf cannot be 0 for MCMC
+pdf = @(x)max(likelihood(l_vec, B_gamma, x', C) * prior(x', priors, prior_doms), realmin); % pdf cannot be 0 for MCMC
 proppdf = @(x,y) mvnpdf(y,x);
 proprnd = @(x) mvnrnd(x, eye(n_as));
 samples = mhsample(start, N_MCMC, 'pdf', pdf, 'proppdf', proppdf, 'proprnd', proprnd, 'burnin', N_burn);
@@ -72,17 +72,17 @@ z_new = [var(samples)',var(samples)'];
 
 end
 
-function p_l = likelihood(l_vec, B_gamma, a_vec, W, A)
+function p_l = likelihood(l_vec, B_gamma, a_vec, C)
 % The likelihood (probability) of observing l_vec under the measurement
 % operator B_gamma (the joint estimator). The likelihood function is a
 % multinomial over the probabilty distribution of the outcomes.
 % ----------------------------------------------------------------
 % INPUTS:
 % ----------------------------------------------------------------
-% l_vec: measurement vector containing the number of photons detected in each
-% of the eigenstates of the joint estimator B_gamma l_vec = [n_1,n_2,...,n_N]
-% B_gamma: The measurement matrix for the joint estimator.
-
+% l_vec:    measurement vector containing the number of photons detected in each
+%           of the eigenstates of the joint estimator B_gamma l_vec = [n_1,n_2,...,n_N]
+% B_gamma:  The measurement matrix for the joint estimator.
+% C :       a stack of the transformed wavelet operators C =  W * A
 % ----------------------------------------------------------------
 % OUTPUTS:
 % ----------------------------------------------------------------
@@ -95,8 +95,11 @@ end
 
 % get the density matrix
 aa_vec = [a_vec;1];
+rho = rho_a_HG(aa_vec,C);
+%{
 theta_vec = W*aa_vec;
 rho = rho_wavelet_HG(A,theta_vec);
+%}
 
 % get the probabilities of each measurement outcome
 [V,~] = eig(B_gamma);

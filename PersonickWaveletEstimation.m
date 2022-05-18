@@ -1,7 +1,7 @@
 % INITIALIZATION
 
-load('db1_4sparse_4x4_img.mat');       % load in image
-%load('db1_2sparse_2x2_img.mat');       
+%load('db1_4sparse_4x4_img.mat');       % load in image
+load('db1_2sparse_2x2_img.mat');       
 
 % Image variables
 img_dims = size(img);                  % image dimension vector [y pixels, x pixels]
@@ -17,7 +17,7 @@ N_HG_modes = n_HG_modes*(n_HG_modes+1)/2;% total number of Hermite-Gauss modes c
 
 % Wavelet decomposition
 WaveletName = 'db1';                   % wavelet type
-WaveletLevel = 2;                      % wavelet decomposition level (complete decomp)
+WaveletLevel = 1;                      % wavelet decomposition level (complete decomp)
 [gt_theta_vec, wv_idx] = wavedec2(img,WaveletLevel,WaveletName);                 % ground truth wavelet coefficients
 gt_theta_vec = gt_theta_vec';
 n_thetas = numel(gt_theta_vec);        % number of wavelet coefficients
@@ -46,11 +46,16 @@ for i = 1:n_thetas
 end
 
 
+
+% Transform the wavelet operator stack A with W to define a new linear 
+% combination of operators. We treat the operator stack as a 'vector' of 
+% operators such that C = [C_1,C_2,...,C_N]^T = W^T [A_1, A_2, ... , A_N]^T
+
 % transformed wavelet operators (pairs with aa_vec)
-C_i = squeeze(sum(reshape(A_i,[size(A_i),1]).*reshape(W,[1,1,size(W)]),3));
+C_i = MatMulVecOp(W',A_i);
 
 % photon collection variables
-N_iter = 100000;                    % number of photons collected per bayesian update iteration
+N_iter = 100000;                     % number of photons collected per bayesian update iteration
 max_iter = 500;                      % number of Bayesian updates to perform
 
 % Metropolis-Hastings parameters
@@ -189,8 +194,8 @@ while iter <= max_iter
     
     % estimate the wavelet coefficients
     MCMC_start = mvnrnd(zeros(size(a_vec)), eye(n_as));
-    [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec,B_gamma, W,...
-                                          A_i, priors, prior_doms, n_MCMC, n_burn, MCMC_start);
+    [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec,B_gamma,C_i,...
+                                          priors, prior_doms, n_MCMC, n_burn, MCMC_start);
     aa_vec = [a_vec ; 1];
 
     % compute the variances and the means from the posteriors
@@ -205,8 +210,8 @@ while iter <= max_iter
     prior_doms = posterior_doms;
     
     % compute Gamma_0 and Gamma_i1
-    Gamma_0 = Gamma_0_HG(A_i,W,aa_mu);
-    Gamma_i1 = Gamma_i1_HG(A_i,W,aa_mu,aa_var);
+    Gamma_0 = Gamma_0_HG(C_i,aa_mu);
+    Gamma_i1 = Gamma_i1_HG(C_i,aa_mu,aa_var);
     
     % compute the optimal parameter estimators {B_i} with the implicit SLD equation.
     B_i = SLD_eval(Gamma_i1,Gamma_0);
@@ -215,7 +220,7 @@ while iter <= max_iter
     h = h_proj(Gamma_0, B_i, aa_mu, aa_var);
     
     % calculate Gamma_1
-    Gamma_1 = Gamma_1_HG(A_i,W,h,aa_mu,aa_var);
+    Gamma_1 = Gamma_1_HG(C_i,h,aa_mu,aa_var);
     
     % update the joint parameter estimator (measurement matrix) 
     B_gamma = SLD_eval(Gamma_1,Gamma_0);

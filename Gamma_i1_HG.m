@@ -1,11 +1,24 @@
-function Gamma_i1_stack = Gamma_i1_HG(A,W,aa_mu,aa_var)
+function Gamma_i1 = Gamma_i1_HG(C,aa_mu,aa_var)
+% Computes the stack of first moment operators for each the 
+% unconstrained parameters.
 % --------
 % Inputs:
 % --------
+% C      -  A stack of matrices representing the wavelet operators transformed by W matrix
+% aa_mu  -  Expectations of the unconstrained parameters
+% aa_var -  Variances of the parameters
 % --------
 % Outputs:
 % --------
-% NOTE: Gamma_i1 = Gamma_i1_stack(:,:,i)  
-    M = diag(aa_var) + aa_mu*aa_mu';    
-    Gamma_i1_stack = squeeze(sum(reshape(A,[size(A),1]).* reshape(W*M,[1,1,size(W*M)]),3));
+% Gamma_i1 - the stack of first moment operators. Gamma_i1 = Gamma_i1_stack(:,:,i) 
+    
+    % get the matrix E[a_i a_j] of expected values for pair-wise parameter 
+    % products
+    M = diag(aa_var) + aa_mu*aa_mu';   
+    
+    % matrix-vector multiplication with vector operator Gamma_1_vec =  W * C_vec
+    Gamma_i1 = MatMulVecOp(M,C);
+    
 end
+
+
