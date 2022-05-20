@@ -1,19 +1,19 @@
 function Y_vec = MatMulVecOp(A,X_vec)
-    % performs matrix-vector multiplication between a matrix and a vector
-    % operator represented by a stack of matrices.
-    % Operation in LaTex notation:
-    %                   $$ \hat{\vec{Y} = A \hat{\vec{X}} $$
-    % --------
-    % Inputs:
-    % --------
-    % A     : a [p, n] matrix
-    % X_vec : a [m, m, n] stack of matrices representing the input vector
-    %         operator. The operators are indexed along the 3rd dimension.
-    % --------
-    % Outputs:
-    % --------
-    % Y_vec : a [m, m, p] stack of matrices representing the output vector
-    %         operator. The operators are indexed along the 3rd dimension.
+% performs matrix-vector multiplication between a matrix and a vector
+% operator represented by a stack of matrices.
+% Operation in LaTex notation:
+%                   $$ \hat{\vec{Y} = A \hat{\vec{X}} $$
+% ----------------------------------------------------------------
+% INPUTS:
+% ----------------------------------------------------------------
+% A     : a [p, n] matrix
+% X_vec : a [m, m, n] stack of matrices representing the input vector
+%         operator. The operators are indexed along the 3rd dimension.
+% ----------------------------------------------------------------
+% OUTPUTS:
+% ----------------------------------------------------------------
+% Y_vec : a [m, m, p] stack of matrices representing the output vector
+%         operator. The operators are indexed along the 3rd dimension.
 
     Y_vec = squeeze(sum(reshape(A',[1,1,size(A')]).*reshape(X_vec,[size(X_vec),1]),3));
 

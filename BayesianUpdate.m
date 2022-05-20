@@ -1,50 +1,36 @@
 % Bayesian update for the posterior
 function [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, C, priors, prior_doms, N_MCMC, N_burn, start)
 % Updates the estimate for the constrained parameter vector a_vec using a
-% Bayesian inference scheme. The hyperparameters for the prior are also
-% updated to serve the subsequeny iteration. The Likelihood is computed 
-% from the most recent measurment outcome of the joint parameter estimator.
-% The prior is a gaussian binomial mixture. To estimate the posterior, 
-% the Metropolis-Hasting algorithm is employed.
-%
-% The hyperparameters for the subsequent iteration (mu_new,
-% z_new) are computed as follows. 
-% After sampling the posterior, we update the mean of the second binomial
-% mixture to the empirical mean of the
-% --------
-% Inputs:
-% --------
-% l_vec     - The measurement vector containing the number of photons in
+% Bayesian inference scheme. The posterior distribution is also approximated
+% from MCMC samples. The Likelihood is computed from the most recent measurement
+% outcome of the joint parameter estimator.
+% ----------------------------------------------------------------
+% INPUTS:
+% ----------------------------------------------------------------
+% l_vec     : The measurement vector containing the number of photons in
 %             each eigenstate of the joint parameter estimator B_gamma.
-% B_gamma   - the joint parameter estimator used to collect the measurement
-% C         - a stack of the transformed wavelet operators C =  W * A
-% priors    - A matrix of dimensions [numel(a_vec),100]. The i'th row contains
+% B_gamma   : the joint parameter estimator used to collect the measurement
+% C         : a stack of the transformed wavelet operators C =  W * A
+% priors    : A matrix of dimensions [n_params-1,100]. The i'th row contains
 %             points on the i'th parameter's prior distribution.
-% prior_doms- A matrix of dimensions [numel(a_vec),100]. Each row
+% prior_doms: A matrix of dimensions [numel(a_vec),100]. Each row
 %             contains the domain points associated with points on the prior
 %             distribution.
-% N_MCMC    - number of Metropolis-Hastings MCMC samples used to compute
+% N_MCMC    : number of Metropolis-Hastings MCMC samples used to compute
 %             approximate the posterior.
-% N_burn    - number of Metropolis-Hasting MCMC samples to discard in order
+% N_burn    : number of Metropolis-Hasting MCMC samples to discard in order
 %             to let the Markov Chain reach steady state.
-% --------
-% Outputs:
-% --------
-% a_vec             - the updated estimate on the constrained parameter vector
-% posteriors        - A matrix of dimensions [numel(a_vec),100]. The i'th row contains
+% ----------------------------------------------------------------
+% OUTPUTS:
+% ----------------------------------------------------------------
+% a_vec             : the updated estimate on the constrained parameter vector
+% posteriors        : A matrix of dimensions [n_params-1,100]. The i'th row contains
 %                     points on the i'th parameter's posterior distribution. 
-% posterior_domains - A matrix of dimensions [numel(a_vec),100]. Each row
+% posterior_domains : A matrix of dimensions [n_params-1,100]. Each row
 %                     contains the domain points associated with points on
 %                     the posterior distribution. 
 
-% REDACTED OUTPUTS%%
-% mu_new    - the updated matrix of means constituting the hyperparameters
-%             for the prior. These are used in the next iteration.
-% z_new     - the updated matrix of variances constituting the
-%             hyperparameters for the GBM prior. These are used in the next
-%             iteration.
-
-% use metropolis-hastings to sample the joint distribution and estimate the new mean and variance
+% use metropolis-hastings to sample the posterior distribution
 n_as = size(priors,1);
 pdf = @(x)max(likelihood(l_vec, B_gamma, x', C) * prior(x', priors, prior_doms), realmin); % pdf cannot be 0 for MCMC
 proppdf = @(x,y) mvnpdf(y,x);
@@ -59,16 +45,8 @@ for i = 1:n_as
     [posteriors(i,:),posterior_doms(i,:)] = ksdensity(samples(:,i));
 end
 
-% estimator is the mean given the posterior
+% MMSE estimator is given by the mean of the posterior
 a_vec = sum(posteriors.*posterior_doms,2); 
-
-%{
-samples = samples/1000;
-mu_new = [mu(:,1),mean(samples)'];
-mu_new = [mean(samples)',mean(samples)'];
-z_new = [z(:,1),var(samples)'];
-z_new = [var(samples)',var(samples)'];
-%}
 
 end
 
@@ -79,14 +57,14 @@ function p_l = likelihood(l_vec, B_gamma, a_vec, C)
 % ----------------------------------------------------------------
 % INPUTS:
 % ----------------------------------------------------------------
-% l_vec:    measurement vector containing the number of photons detected in each
-%           of the eigenstates of the joint estimator B_gamma l_vec = [n_1,n_2,...,n_N]
-% B_gamma:  The measurement matrix for the joint estimator.
-% C :       a stack of the transformed wavelet operators C =  W * A
+% l_vec     : measurement vector containing the number of photons detected in each
+%             of the eigenstates of the joint estimator B_gamma l_vec = [n_1,n_2,...,n_N]
+% B_gamma   : The measurement matrix for the joint estimator.
+% C         : a stack of the transformed wavelet operators C =  W * A
 % ----------------------------------------------------------------
 % OUTPUTS:
 % ----------------------------------------------------------------
-% p_l : the probability of the outcome l_vec
+% p_l       : the probability of the outcome l_vec
 
 [~,max_dim_idx] = max(size(a_vec));    
 if max_dim_idx == 2
@@ -96,16 +74,12 @@ end
 % get the density matrix
 aa_vec = [a_vec;1];
 rho = rho_a_HG(aa_vec,C);
-%{
-theta_vec = W*aa_vec;
-rho = rho_wavelet_HG(A,theta_vec);
-%}
 
 % get the probabilities of each measurement outcome
 [V,~] = eig(B_gamma);
 p_outcomes = diag(V'*rho*V);
 
-% take asbolute value for numerical stability
+% take absolute value for numerical stability
 p_outcomes = abs(p_outcomes);
 
 % include the outcome probability for modes greater the N_HG_modes
@@ -114,7 +88,7 @@ p_outcomes = [p_outcomes; max(0,1-sum(p_outcomes))];
 % normalize probability
 p_outcomes = p_outcomes/sum(p_outcomes);
     
-% Likelihood is a multinomial
+% likelihood is a multinomial
 p_l = mnpdf(l_vec, p_outcomes);
 
 % handle numerically unstable cases
@@ -127,16 +101,20 @@ function p_a = prior(a_vec, priors, prior_doms)
 % Calculates the probability of observing a_vec given
 % a generalized probability density approximation for each parameter.
 % This prior assumes the parameters are independent.
-%
+% ----------------------------------------------------------------
 % INPUTS:
-%   a_vec - An instance of the parameter vector with prior given by the
-%           other inputs (priors, prior_doms)
-%   priors - A matrix of dimensions [numel(a_vec),100]. The i'th row contains
-%            points on the i'th parameter's prior distribution.
-%   prior_doms - A matrix of dimensions [numel(a_vec),100]. Each row
-%           contains the domain points associated with points on the prior
-%           distribution.
-% OUTPUT:
+% ----------------------------------------------------------------
+% a_vec         : An instance of the parameter vector with prior given by the
+%                 other inputs (priors, prior_doms)
+% priors        : A matrix of dimensions [numel(a_vec),100]. The i'th row contains
+%                 points on the i'th parameter's prior distribution.
+% prior_doms    : A matrix of dimensions [numel(a_vec),100]. Each row
+%                 contains the domain points associated with points on the prior
+%                 distribution.
+% ----------------------------------------------------------------
+% OUTPUTS:
+% ----------------------------------------------------------------
+% p_a           : probability P(a_vec)
 
 p_a_vec = zeros(size(a_vec));
 for i = 1:numel(a_vec)

@@ -2,7 +2,17 @@ function W = W_matrix(n_thetas, ff)
 % Computes the matrix for transforming the unconstrained parameter vector 
 % a_vec into the wavelet coefficient vector theta_vec. The matrix is
 % defined such that it enforces the hyperplane constraint imposed by the 
-% trace-1 property of the density oeprator. 
+% trace-1 property of the density oeprator.
+% ----------------------------------------------------------------
+% INPUTS:
+% ----------------------------------------------------------------
+% n_thetas  : the number of wavelet coefficients
+% ff        : the integrals of the wavelet functions
+% ----------------------------------------------------------------
+% OUTPUTS:
+% ----------------------------------------------------------------
+% W         : the transform matrix
+
 
 N = n_thetas;       % Number of parameters
 idx = 1:N;          % Index list

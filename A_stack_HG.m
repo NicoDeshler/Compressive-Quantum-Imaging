@@ -1,23 +1,21 @@
 function  A_stack = A_stack_HG(img_dims,n_modes,n_thetas,WaveletName,WaveletLevel)
-% Computes the 'A' operators in the HG representation for a given
-% wavelet transform. These operators are the OTF projectors after undergoing 
-% a wavelet transform. The OTF of the system is assumed to 
-% be a gaussian PSF of width sigma_x = sigma_y.
-%
-% --------
-% Inputs:
-% --------
+% Computes the wavelet operators in the HG representation for a given
+% wavelet transform. These operators are related to a wavelet transform of
+% the system PSF, which is assumed to be a non-skew 2D gaussian with
+% width sigma_x = sigma_y.
+% ----------------------------------------------------------------
+% INPUTS:
+% ----------------------------------------------------------------
 % image_dims    - Dimensions of the scene we wish to reconstruct (in pixels)
 % n_thetas      - Number of parameters of the scene we wish to estimate
 % n_modes       - Maximum order of 1D Hermite-Gauss modes used for the matrix
 %                 representation. The total number of 2D modes used is thus n(n+1)/2
 % WaveletName   - The wavelet type (e.g. 'sym8','db1', etc)
 % WaveletLevel  - The maximum wavelet transform depth
-
-% --------
-% Outputs:
-% --------
-% A_stack - a data cube of dimensions (N_mode,N_mode,n_thetas)
+% ----------------------------------------------------------------
+% OUTPUTS:
+% ----------------------------------------------------------------
+% A_stack - a data cube of dimensions [N_mode,N_mode,n_thetas]
 
 % Rayleigh length
 rl = 1;

@@ -3,18 +3,17 @@ function S_stack = SLD_eval(F_stack, R)
 % Symmetric Logarithmic Derivative
 %                       2F = RS + SR
 % This method requires that F and R be Hermitian.
-
-% --------
-% Inputs:
-% --------
-% F_stack   - A stack of matrices corresponding to the operator F in the
-%           implicit SLD equation
-% R         - A matrix corresponding to the operator R in the implicit SLD
-%           equation
-% --------
-% Outputs:
-% --------
-% S_stack   - solutions to the implicit SLD equations
+% ----------------------------------------------------------------
+% INPUTS:
+% ----------------------------------------------------------------
+% F_stack   : a stack of matrices corresponding to the operator F in the
+%             implicit SLD equation
+% R         : a matrix corresponding to the operator R in the implicit SLD
+%             equation
+% ----------------------------------------------------------------
+% OUTPUTS:
+% ----------------------------------------------------------------
+% S_stack   : solutions to the implicit SLD equations
 
 % Add dimensionality to F if its not a matrix stack (i.e. just 1 matrix)
 is_stack = 1;

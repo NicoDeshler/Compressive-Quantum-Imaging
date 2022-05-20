@@ -4,16 +4,16 @@ function rho_1 = rho_a_HG(aa_vec, C)
 % expressed in the wavelet domain. The PSF of the system is assumed to 
 % be a gaussian psf of width sigma_x = sigma_y.
 %
-% --------
-% Inputs:
-% --------
-% aa_vec     - the augmented parameter vector related to the wavelet coefficients through the W matrix 
-% C          - A stack of matrices containing the wavelet operator vector
+% ----------------------------------------------------------------
+% INPUTS:
+% ----------------------------------------------------------------
+% aa_vec     : the augmented parameter vector related to the wavelet coefficients through the W matrix 
+% C          : a stack of matrices containing the wavelet operator vector
 %              transfromed by W
-% --------
-% Outputs:
-% --------
-% rho_1         - The density matrix
+% ----------------------------------------------------------------
+% OUTPUTS:
+% ----------------------------------------------------------------
+% rho_1      : the density matrix
 
 rho_1 = MatMulVecOp(aa_vec',C);
 

@@ -7,18 +7,16 @@ function Gamma_0 = Gamma_0_HG(C,aa_mu)
 % joint parameter gamma = dot(h_vec,a_vec). Note that this function only
 % applies to constrained parameters a_vec which are INDPENDENT random
 % variables.
-%
-% --------
-% Inputs:
-% --------
-% C     - the transformed wavelet operators
-% aa_mu - a vector containing the expected values of the parameters in the
-% augmented parameter a_vec given the prior.
-%
-% --------
-% Outputs:
-% --------
-% Gamma_0 - A matrix with dimensions equal to size(A(:,:,1))
+% ----------------------------------------------------------------
+% INPUTS:
+% ----------------------------------------------------------------
+% C     : the transformed wavelet operators
+% aa_mu : a vector containing the expected values of the parameters in the
+%         augmented parameter a_vec given the prior.
+% ----------------------------------------------------------------
+% OUTPUTS:
+% ----------------------------------------------------------------
+% Gamma_0 : a matrix with dimensions equal to size(A(:,:,1))
 
 Gamma_0 = MatMulVecOp(aa_mu',C);
     
