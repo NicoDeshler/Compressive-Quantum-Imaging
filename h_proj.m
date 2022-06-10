@@ -28,8 +28,20 @@ end
 % Quantum Bayesian Cramer-Rao Lower Bound (QBCRLB)
 Sigma_Q = M - G;
 
+% Remove matrix elements corresponding to the augmented parameter
+%Sigma_Q = Sigma_Q(1:end-1,1:end-1);
+
 % Get eigenvector corresponding to maximum eigenvalue of the QBCRLB
-[V,lam] = eig(Sigma_Q);
-[~, max_eigval_idx] = max(lam);
-h = V(:,max_eigval_idx(1)); % joint parameter vector
+[V,lam] = eig(Sigma_Q,'vector');
+
+% choose min eigenvector
+[~, min_eigval_idx] = min(lam);
+h = V(:,min_eigval_idx(1)); % joint parameter vector
+
+% choose max eigenvector
+%[~, max_eigval_idx] = max(lam);
+%h = V(:,max_eigval_idx(1)); % joint parameter vector
+
+% augment the projection vector
+%h = [h;0];
 end

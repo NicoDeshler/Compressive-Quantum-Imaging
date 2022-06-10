@@ -21,8 +21,9 @@ function  A_stack = A_stack_HG(img_dims,n_modes,n_thetas,WaveletName,WaveletLeve
 rl = 1;
 
 % Gaussian OTF widths
-sigma_x = rl;    
-sigma_y = rl;
+sigma = rl;
+sigma_x = sigma;    
+sigma_y = sigma;
 
 % Discretize object plane coordinates system
 x=linspace(-rl/2,rl/2,img_dims(1)); y=linspace(-rl/2,rl/2,img_dims(2));

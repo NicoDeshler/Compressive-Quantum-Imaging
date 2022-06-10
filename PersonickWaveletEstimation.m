@@ -5,14 +5,14 @@ load('db1_2sparse_2x2_img.mat');
 
 % Image variables
 img_dims = size(img);                  % image dimension vector [y pixels, x pixels]
-img = img/sum(img,'all');             % normalized scene intensity distribution 
+img = img/sum(img,'all');              % normalized scene intensity distribution 
 
 % Imaging system (Gaussian PSF)
-sigma_x = 1;    % PSF width along x
-sigma_y = 1;    % PSF width along y
+sigma=img_dims(1);    % PSF width (in pixels)
+direct_imaging = imgaussfilt(img,sigma);    % what the image would look like after direct imaging
 
 % HG mode state space representation
-n_HG_modes = 8;                        % max number of 1D Hermite-Gauss modes to consider
+n_HG_modes = 4;                        % max number of 1D Hermite-Gauss modes to consider
 N_HG_modes = n_HG_modes*(n_HG_modes+1)/2;% total number of Hermite-Gauss modes considered
 
 % Wavelet decomposition
@@ -55,18 +55,20 @@ end
 C_i = MatMulVecOp(W',A_i);
 
 % photon collection variables
-N_iter = 100000;                     % number of photons collected per bayesian update iteration
-max_iter = 500;                      % number of Bayesian updates to perform
+N_iter = 1e6;                     % number of photons collected per bayesian update iteration
+max_iter = 100;                      % number of Bayesian updates to perform
 
 % Metropolis-Hastings parameters
-n_MCMC = 10000;                   % number of MCMC samples of the posterior distribution
-n_burn = 3000;                     % number of MCMC burnin samples (number of samples discarded while Markov Chain converges to stationary distribution)
+n_MCMC = 1e5;                   % number of MCMC samples of the posterior distribution
+n_burn = 1e4;                   % number of MCMC burnin samples (number of samples discarded while Markov Chain converges to stationary distribution)
 
 % GBM prior parameters
 q = 1/4;                                       % fractional sparsity  K/N = (# non-zero params/ # params)
-z_min = 1;                                      % min variance
-z_max = 10;                                     % max variance
-mu = zeros([n_thetas-1,2]);                     % means for gaussian mixture random variables
+z_min = .1;                                    % min variance
+z_max = 1;                                     % max variance
+
+mu = repmat(gt_a_vec,[1,2]);                   % means for gaussian mixture random variables
+%mu = zeros([n_thetas-1,2]);                    % means for gaussian mixture random variables
 z = [z_min*ones([n_as,1]),z_max*ones([n_as,1])];    % variances for gaussian mixture randomv variables
 
 % Generate samples of GBM prior for creating probability density estimate
@@ -81,6 +83,8 @@ a_vec = zeros([n_as,1]);
 for i = 1:n_as
     % generate probability density estimate
     [GBM_priors(i,:), GBM_prior_doms(i,:)] = ksdensity(GBM_samples(i,:)); 
+    % normalize the priors to turn ksdensity Prob Density Fn to Prob Mass Fn
+    GBM_priors(i,:) = GBM_priors(i,:)/sum(GBM_priors(i,:));
     % sample the unconstrained parameter vector from the initial prior
     a_vec(i) = datasample(GBM_prior_doms(i,:), 1,'weights',GBM_priors(i,:));
 end
@@ -151,7 +155,7 @@ axis('square')
 %}
 
 %% Make video objects
-make_videos = 0;
+make_videos = 1;
 
 if make_videos
 
@@ -180,6 +184,7 @@ end
 %% Run Adaptive Bayesian Inference Algorithm 
 % make coefficient convergence stack
 a_evo = zeros(n_as, max_iter);
+a_var_evo = zeros(n_as, max_iter);
 
 % Bayesian Update
 priors = GBM_priors;
@@ -216,7 +221,7 @@ while iter <= max_iter
     % compute the optimal parameter estimators {B_i} with the implicit SLD equation.
     B_i = SLD_eval(Gamma_i1,Gamma_0);
     
-    % compute the SLD eigenprojection vector
+    % compute the joint-parameter projection
     h = h_proj(Gamma_0, B_i, aa_mu, aa_var);
     
     % calculate Gamma_1
@@ -230,6 +235,7 @@ while iter <= max_iter
     
     % update theta evolution stack (each time step is a new column)
     a_evo(:,iter) = a_vec;
+    a_var_evo(:,iter) = a_var;
     
     % update iteration index
     iter = iter + 1;

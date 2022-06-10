@@ -42,11 +42,14 @@ samples = mhsample(start, N_MCMC, 'pdf', pdf, 'proppdf', proppdf, 'proprnd', pro
 posteriors = zeros([n_as,100]);
 posterior_doms = zeros([n_as,100]);
 for i = 1:n_as
-    [posteriors(i,:),posterior_doms(i,:)] = ksdensity(samples(:,i));
+    [posteriors(i,:), posterior_doms(i,:)] = ksdensity(samples(:,i));
 end
 
+% normalize posteriors (technically ksdensity discretely approximates a pdf)
+posteriors = posteriors./sum(posteriors,2);
+
 % MMSE estimator is given by the mean of the posterior
-a_vec = sum(posteriors.*posterior_doms,2); 
+a_vec = sum(posteriors.*posterior_doms,2);
 
 end
 
@@ -118,7 +121,8 @@ function p_a = prior(a_vec, priors, prior_doms)
 
 p_a_vec = zeros(size(a_vec));
 for i = 1:numel(a_vec)
-    p_a_vec(i) = interp1(prior_doms(i,:),priors(i,:),a_vec(i));
+    [~,p_a_ind] = min(abs(prior_doms(i,:)-a_vec(i)));
+    p_a_vec(i) =  priors(i,p_a_ind(1));
 end
 
 % handle numerically unstable cases
