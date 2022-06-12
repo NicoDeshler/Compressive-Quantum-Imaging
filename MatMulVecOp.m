@@ -14,7 +14,8 @@ function Y_vec = MatMulVecOp(A,X_vec)
 % ----------------------------------------------------------------
 % Y_vec : a [m, m, p] stack of matrices representing the output vector
 %         operator. The operators are indexed along the 3rd dimension.
-
+    
+    assert(size(A,2)==size(X_vec,3),'The matrix dimensions are not compatible with dimensions of the vector operator');
     Y_vec = squeeze(sum(reshape(A',[1,1,size(A')]).*reshape(X_vec,[size(X_vec),1]),3));
 
 end

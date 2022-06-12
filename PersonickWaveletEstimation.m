@@ -8,7 +8,7 @@ img_dims = size(img);                  % image dimension vector [y pixels, x pix
 img = img/sum(img,'all');              % normalized scene intensity distribution 
 
 % Imaging system (Gaussian PSF)
-sigma=img_dims(1);    % PSF width (in pixels)
+sigma = img_dims(1);    % PSF width (in pixels)
 direct_imaging = imgaussfilt(img,sigma);    % what the image would look like after direct imaging
 
 % HG mode state space representation
@@ -36,12 +36,12 @@ gt_aa_vec = W\gt_theta_vec;
 gt_a_vec = gt_aa_vec(1:end-1);
 
 % wavelet operators (pairs with theta_vec)
-A_i = A_stack_HG(img_dims,n_HG_modes,n_thetas,WaveletName,WaveletLevel);
+A_vec = A_stack_HG(img_dims,n_HG_modes,n_thetas,WaveletName,WaveletLevel);
 
 % normalize wavelet operators so that [tr(A1), tr(A2),...,tr(AN)] = f_vec
 for i = 1:n_thetas
     if f_vec(i) ~= 0
-       A_i(:,:,i) = A_i(:,:,i)/trace(A_i(:,:,i)) * f_vec(i);
+       A_vec(:,:,i) = A_vec(:,:,i)/trace(A_vec(:,:,i)) * f_vec(i);
     end
 end
 
@@ -52,7 +52,7 @@ end
 % operators such that C = [C_1,C_2,...,C_N]^T = W^T [A_1, A_2, ... , A_N]^T
 
 % transformed wavelet operators (pairs with aa_vec)
-C_i = MatMulVecOp(W',A_i);
+C_vec = MatMulVecOp(W',A_vec);
 
 % photon collection variables
 N_iter = 1e6;                     % number of photons collected per bayesian update iteration
@@ -67,8 +67,8 @@ q = 1/4;                                       % fractional sparsity  K/N = (# n
 z_min = .1;                                    % min variance
 z_max = 1;                                     % max variance
 
-mu = repmat(gt_a_vec,[1,2]);                   % means for gaussian mixture random variables
-%mu = zeros([n_thetas-1,2]);                    % means for gaussian mixture random variables
+%mu = repmat(gt_a_vec,[1,2]);                   % means for gaussian mixture random variables
+mu = zeros([n_thetas-1,2]);                     % means for gaussian mixture random variables
 z = [z_min*ones([n_as,1]),z_max*ones([n_as,1])];    % variances for gaussian mixture randomv variables
 
 % Generate samples of GBM prior for creating probability density estimate
@@ -195,11 +195,11 @@ iter = 1;
 while iter <= max_iter
      
     % simulate a measurement
-    l_vec = SimulateMeasurement(B_gamma, N_iter, A_i, gt_theta_vec);
+    l_vec = SimulateMeasurement(B_gamma, N_iter, A_vec, gt_theta_vec);
     
     % estimate the wavelet coefficients
     MCMC_start = mvnrnd(zeros(size(a_vec)), eye(n_as));
-    [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec,B_gamma,C_i,...
+    [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec,B_gamma,C_vec,...
                                           priors, prior_doms, n_MCMC, n_burn, MCMC_start);
     aa_vec = [a_vec ; 1];
 
@@ -215,17 +215,40 @@ while iter <= max_iter
     prior_doms = posterior_doms;
     
     % compute Gamma_0 and Gamma_i1
-    Gamma_0 = Gamma_0_HG(C_i,aa_mu);
-    Gamma_i1 = Gamma_i1_HG(C_i,aa_mu,aa_var);
+    Gamma_0 = Gamma_0_HG(C_vec,aa_mu);
+    Gamma_i1 = Gamma_i1_HG(C_vec,aa_mu,aa_var);
     
     % compute the optimal parameter estimators {B_i} with the implicit SLD equation.
-    B_i = SLD_eval(Gamma_i1,Gamma_0);
+    B_vec = SLD_eval(Gamma_i1,Gamma_0);
     
     % compute the joint-parameter projection
-    h = h_proj(Gamma_0, B_i, aa_mu, aa_var);
+    E_Q = Sigma_Q(Gamma_0, B_vec, aa_mu, aa_var);
+    E_Q = E_Q(1:end-1,1:end-1); % crop out augmented parameter
+    [V,lam] = eig(E_Q,'vector');
+
+    % choose min eigenvector
+    [~, min_eigval_idx] = min(lam);
+    h = V(:,min_eigval_idx(1)); % joint parameter vector
+    
+    
+    %{    
+    % choose max eigenvector
+    [~, max_eigval_idx] = max(lam);
+    h = V(:,max_eigval_idx(1)); % joint parameter vector
+    
+    
+    % choose trace utility 
+    a_weights = ones(n_as,1)/n_as;
+    a_weights_sqrt = a_weights.^0.5;
+    h = V*a_weights_sqrt;
+    %}
+    
+    h = [h;0];
+    
+    %h = h_proj(Gamma_0, B_i, aa_mu, aa_var);
     
     % calculate Gamma_1
-    Gamma_1 = Gamma_1_HG(C_i,h,aa_mu,aa_var);
+    Gamma_1 = Gamma_1_HG(C_vec,h,aa_mu,aa_var);
     
     % update the joint parameter estimator (measurement matrix) 
     B_gamma = SLD_eval(Gamma_1,Gamma_0);
@@ -308,6 +331,15 @@ imagesc(a_evo)
 title('Parameter Convergence')
 xlabel('Iteration')
 ylabel('$a_i$','interpreter','latex')
+xticks(5:5:max_iter)
+yticks(1:n_thetas)
+colorbar
+
+figure(117)
+imagesc(a_var_evo)
+title('Variance Convergence')
+xlabel('Iteration')
+ylabel('$Var(a_i)$','interpreter','latex')
 xticks(5:5:max_iter)
 yticks(1:n_thetas)
 colorbar

@@ -29,12 +29,11 @@ end
 Sigma_Q = M - G;
 
 % Remove matrix elements corresponding to the augmented parameter
-%Sigma_Q = Sigma_Q(1:end-1,1:end-1);
+Sigma_Q = Sigma_Q(1:end-1,1:end-1);
 
 % Get eigenvector corresponding to maximum eigenvalue of the QBCRLB
 [V,lam] = eig(Sigma_Q,'vector');
 
-% choose min eigenvector
 [~, min_eigval_idx] = min(lam);
 h = V(:,min_eigval_idx(1)); % joint parameter vector
 
@@ -43,5 +42,5 @@ h = V(:,min_eigval_idx(1)); % joint parameter vector
 %h = V(:,max_eigval_idx(1)); % joint parameter vector
 
 % augment the projection vector
-%h = [h;0];
+h = [h;0];
 end
