@@ -30,19 +30,39 @@ for j =1:size(F_stack,3)
 end
 
 % Get the eigenvectors/values of R
-[V, d] = eig(R,'vector');
+[V_R, d] = eig(R,'vector');
 
+
+[D1,D2] = meshgrid(d,d);
 
 S_stack = zeros(size(F_stack));
-for i = 1:size(F_stack,1)
+for k = 1:size(F_stack,3)
+    S_stack(:,:,k) = 2*V_R'*F_stack(:,:,k)*V_R ...
+                ./(D1+D2 + (D1+D2 == 0) ).*(D1+D2 ~= 0);
+end
+
+% Transform the stacks back to the HG space
+for k = 1:size(F_stack,3)
+    S_stack(:,:,k) =  V_R*S_stack(:,:,k)*V_R';
+end
+
+
+%{
+%% Method below is equivalent to that of method above with transformation
+step back into HG basis. The one above is faster though.
+
+S_stack2 = zeros(size(F_stack));
+for k = 1:size(F_stack,3)
     for j = 1:size(F_stack,2)
-        for k = 1:size(F_stack,3)
+        for i = 1:size(F_stack,1)
             if d(i)+d(j) ~= 0
-                S_stack(:,:,k) = S_stack(:,:,k) + 1/2 * (V(:,i)'*F_stack(:,:,k)*V(:,j))/(d(i)+d(j)) * V(:,i)*V(:,j)';
+                S_stack2(:,:,k) = S_stack2(:,:,k) + 2*(V_R(:,i)'*F_stack(:,:,k)*V_R(:,j))/(d(i)+d(j)) * V_R(:,i)*V_R(:,j)';
             end
         end
     end
 end
+%}
+
 
 % Average each output the matrix with its Hermitian conjugate for numerical stability
 for k = 1:size(F_stack,3) 

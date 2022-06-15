@@ -1,7 +1,11 @@
 % INITIALIZATION
+clear
+close all
 
 %load('db1_4sparse_4x4_img.mat');       % load in image
-load('db1_2sparse_2x2_img.mat');       
+%load('db1_2sparse_2x2_img.mat');
+%load('db1_3sparse_2x2_img.mat')
+img = abs(randn([2,2]));
 
 % Image variables
 img_dims = size(img);                  % image dimension vector [y pixels, x pixels]
@@ -12,7 +16,7 @@ sigma = img_dims(1);    % PSF width (in pixels)
 direct_imaging = imgaussfilt(img,sigma);    % what the image would look like after direct imaging
 
 % HG mode state space representation
-n_HG_modes = 4;                        % max number of 1D Hermite-Gauss modes to consider
+n_HG_modes = 6;                        % max number of 1D Hermite-Gauss modes to consider
 N_HG_modes = n_HG_modes*(n_HG_modes+1)/2;% total number of Hermite-Gauss modes considered
 
 % Wavelet decomposition
@@ -56,11 +60,11 @@ C_vec = MatMulVecOp(W',A_vec);
 
 % photon collection variables
 N_iter = 1e6;                     % number of photons collected per bayesian update iteration
-max_iter = 100;                      % number of Bayesian updates to perform
+max_iter = 10;                    % number of Bayesian updates to perform
 
 % Metropolis-Hastings parameters
 n_MCMC = 1e5;                   % number of MCMC samples of the posterior distribution
-n_burn = 1e4;                   % number of MCMC burnin samples (number of samples discarded while Markov Chain converges to stationary distribution)
+n_burn = 1e5;                   % number of MCMC burnin samples (number of samples discarded while Markov Chain converges to stationary distribution)
 
 % GBM prior parameters
 q = 1/4;                                       % fractional sparsity  K/N = (# non-zero params/ # params)
@@ -99,85 +103,78 @@ B_gamma = eye(N_HG_modes);
 assert(ishermitian(B_gamma));
 
 %% Display Initialization Figures
+show_init_figs = 1;
 
-% display input image
-figure(111)
-imagesc(img)
-title('Input Image')
-xticks((1:img_dims(1))-.5)
-yticks((1:img_dims(2))-.5)
-xticklabels({})
-yticklabels({})
-grid on
-axis('square')
+if show_init_figs
+    % display input image
+    figure(111)
+    imagesc(img)
+    title('Input Image')
+    xticks((1:img_dims(1))-.5)
+    yticks((1:img_dims(2))-.5)
+    xticklabels({})
+    yticklabels({})
+    grid on
+    axis('square')
 
-% display the W matrix
-figure(112)
-imagesc(W)
-title('Parameter Transform Matrix')
-caxis([min(W(:)),max(W(:))])
-yticks([])
-xticks(1:5)
-xticklabels({'w_1','w_2','w_3','f'})
-axis 'square'
-title('W matrix')
-axis('square')
-axis('off')
+    % display the W matrix
+    figure(112)
+    imagesc(W)
+    title('Parameter Transform Matrix')
+    caxis([min(W(:)),max(W(:))])
+    yticks([])
+    xticks(1:5)
+    xticklabels({'w_1','w_2','w_3','f'})
+    axis 'square'
+    title('W matrix')
+    axis('square')
+    axis('off')
 
-% display ground truth wavelet coefficients
-figure(113)
-stem(gt_theta_vec,'filled')
-xlim([-1,n_thetas+1])
-xlabel('Index $i$','interpreter','latex')
-ylabel('Wavelet Coeff $\theta_i$','interpreter','latex')
-title('Ground-Truth $\vec{\theta}$','interpreter','latex')
+    % display ground truth wavelet coefficients
+    figure(113)
+    stem(gt_theta_vec,'filled')
+    xlim([-1,n_thetas+1])
+    xlabel('Index $i$','interpreter','latex')
+    ylabel('Wavelet Coeff $\theta_i$','interpreter','latex')
+    title('Ground-Truth $\vec{\theta}$','interpreter','latex')
 
-% display ground truth unconstrained coefficients
-figure(114)
-stem(gt_a_vec,'filled')
-xlim([-1,n_as+1])
-xlabel('Index $i$','interpreter','latex')
-ylabel('Unconstrained Coeff $a_i$','interpreter','latex')
-title('Ground-Truth $\vec{a}$','interpreter','latex')
+    % display ground truth unconstrained coefficients
+    figure(114)
+    stem(gt_a_vec,'filled')
+    xlim([-1,n_as+1])
+    xlabel('Index $i$','interpreter','latex')
+    ylabel('Unconstrained Coeff $a_i$','interpreter','latex')
+    title('Ground-Truth $\vec{a}$','interpreter','latex')
 
 
-%{
-% plot the wavelet decomposition tree
-figure;
-plotwavelet2(gt_theta_vec, wv_idx, WaveletLevel, WaveletName,16,'square')
-title('Db1 Wavelet Decomposition Tree')
-xticks((1:img_dims(1))-.5);
-yticks((1:img_dims(2))-.5);
-xticklabels({})
-yticklabels({})
-grid on
-axis('square')
-%}
+    %{
+    % plot the wavelet decomposition tree
+    figure;
+    plotwavelet2(gt_theta_vec, wv_idx, WaveletLevel, WaveletName,16,'square')
+    title('Db1 Wavelet Decomposition Tree')
+    xticks((1:img_dims(1))-.5);
+    yticks((1:img_dims(2))-.5);
+    xticklabels({})
+    yticklabels({})
+    grid on
+    axis('square')
+    %}
+end
 
 %% Make video objects
 make_videos = 1;
 
 if make_videos
-
+    
     vid_a = VideoWriter('UnconstrainedParams.avi');
-    vid_a.FrameRate = 1;
+    vid_a.FrameRate = 3;
     open(vid_a)
     fig_a = figure(101);
 
-    vid_post_a1 = VideoWriter('a1_posterior.avi');
-    vid_post_a1.FrameRate = 1;
-    open(vid_post_a1)
-    fig_post_a1 = figure(102);
-
-    vid_post_a2 = VideoWriter('a2_posterior.avi');
-    vid_post_a2.FrameRate = 1;
-    open(vid_post_a2)
-    fig_post_a2 = figure(103);
-
-    vid_post_a3 = VideoWriter('a3_posterior.avi');
-    vid_post_a3.FrameRate = 1;
-    open(vid_post_a3)
-    fig_post_a3 = figure(104);
+    vid_posteriors = VideoWriter('Posteriors.avi');
+    vid_posteriors.FrameRate = 3;
+    open(vid_posteriors)
+    fig_posteriors = figure(102);
 end
 
 
@@ -198,10 +195,16 @@ while iter <= max_iter
     l_vec = SimulateMeasurement(B_gamma, N_iter, A_vec, gt_theta_vec);
     
     % estimate the wavelet coefficients
-    MCMC_start = mvnrnd(zeros(size(a_vec)), eye(n_as));
+    MCMC_start = mvnrnd(zeros(size(a_vec)), eye(n_as)*1e-1);
     [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec,B_gamma,C_vec,...
                                           priors, prior_doms, n_MCMC, n_burn, MCMC_start);
+    %%%%% fix param swap %%%%%%
+    %a_vec = flip(a_vec);
+    %posteriors = flip(posteriors,1);
+    %posterior_doms = flip(posterior_doms,1);
+                                      
     aa_vec = [a_vec ; 1];
+    
 
     % compute the variances and the means from the posteriors
     a_mu = sum(posteriors.*posterior_doms,2);
@@ -224,34 +227,20 @@ while iter <= max_iter
     % compute the joint-parameter projection
     E_Q = Sigma_Q(Gamma_0, B_vec, aa_mu, aa_var);
     E_Q = E_Q(1:end-1,1:end-1); % crop out augmented parameter
-    [V,lam] = eig(E_Q,'vector');
+    [V_Q,lam] = eig(E_Q,'vector');
 
     % choose min eigenvector
     [~, min_eigval_idx] = min(lam);
-    h = V(:,min_eigval_idx(1)); % joint parameter vector
-    
-    
-    %{    
-    % choose max eigenvector
-    [~, max_eigval_idx] = max(lam);
-    h = V(:,max_eigval_idx(1)); % joint parameter vector
-    
-    
-    % choose trace utility 
-    a_weights = ones(n_as,1)/n_as;
-    a_weights_sqrt = a_weights.^0.5;
-    h = V*a_weights_sqrt;
-    %}
-    
+    h = V_Q(:,min_eigval_idx(1)); % joint parameter vector
+    % augment h
     h = [h;0];
-    
-    %h = h_proj(Gamma_0, B_i, aa_mu, aa_var);
     
     % calculate Gamma_1
     Gamma_1 = Gamma_1_HG(C_vec,h,aa_mu,aa_var);
     
     % update the joint parameter estimator (measurement matrix) 
     B_gamma = SLD_eval(Gamma_1,Gamma_0);
+    [V_gamma,~] = eig(B_gamma);
         
     % update the number of photons
     N_collected = N_collected + N_iter;
@@ -266,6 +255,8 @@ while iter <= max_iter
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Write figures to video objects
     if make_videos
+        
+        % parameter estimate
         figure(fig_a)
         stem(a_vec,'filled')
         xlim([-1,n_as+1])
@@ -274,30 +265,27 @@ while iter <= max_iter
         title('Estimate $\hat{a}$','interpreter','latex')
         frame = getframe(fig_a);
         writeVideo(vid_a,frame)
-
-        figure(fig_post_a1)
+        
+        % posteriors
+        figure(fig_posteriors)
+        % P(a1|l)
+        subplot(1,3,1)
         plot(posterior_doms(1,:),posteriors(1,:))
         xlabel('$a_1$','interpreter','latex')
         ylabel('$P(a_1|\vec{l})$','interpreter','latex')
-        title('Posterior $a_1$','interpreter','latex')
-        frame = getframe(fig_post_a1);
-        writeVideo(vid_post_a1,frame)
-
-        figure(fig_post_a2)
+        subplot(1,3,2)
+        % P(a2|l)
         plot(posterior_doms(2,:),posteriors(2,:))
         xlabel('$a_2$','interpreter','latex')
         ylabel('$P(a_2|\vec{l})$','interpreter','latex')
-        title('Posterior $a_2$','interpreter','latex')
-        frame = getframe(fig_post_a2);
-        writeVideo(vid_post_a2,frame)
-
-        figure(fig_post_a3)
+        % P(a3|l)
+        subplot(1,3,3)
         plot(posterior_doms(3,:),posteriors(3,:))
         xlabel('$a_3$','interpreter','latex')
         ylabel('$P(a_3|\vec{l})$','interpreter','latex')
-        title('Posterior $a_3$','interpreter','latex')
-        frame = getframe(fig_post_a3);
-        writeVideo(vid_post_a3,frame)
+        
+        frame = getframe(fig_posteriors);
+        writeVideo(vid_posteriors,frame)
     end
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end
@@ -305,9 +293,7 @@ end
 % close video objects
 if make_videos
     close(vid_a)
-    close(vid_post_a1)
-    close(vid_post_a2)
-    close(vid_post_a3)
+    close(vid_posteriors)
 end
 
 % Compare output to ground truth wavelet coefficients
@@ -319,10 +305,13 @@ img_out = waverec2(theta_vec,wv_idx,WaveletName);
 figure(115);
 imagesc(img_out);
 title('Image Estimate')
-xticks((1:img_dims(1))-.5);
-yticks((1:img_dims(2))-.5);
-xticklabels({})
-yticklabels({})
+%xticks((1:img_dims(1))-.5);
+%yticks((1:img_dims(2))-.5);
+xticks((0:img_dims(1))-.5);
+yticks((0:img_dims(2))-.5);
+
+%xticklabels({'$-Rl$','0','$+Rl$'},'interpreter','latex')
+%yticklabels({'$-Rl$','0','$+Rl$'},'interpreter','latex')
 grid on
 axis 'square'
 

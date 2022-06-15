@@ -30,20 +30,38 @@ function [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, C,
 %                     contains the domain points associated with points on
 %                     the posterior distribution. 
 
-% use metropolis-hastings to sample the posterior distribution
-n_as = size(priors,1);
+
+
+% Interior Sampling (only works for low-dimensional cases)
+pdf = @(x)max(likelihood(l_vec, B_gamma, x, C) * prior(x, priors, prior_doms), realmin);
+[posteriors,posterior_doms] = interior_sampling(pdf);
+
+%{
+% MCMC Sampling Methods
+
+% Slice Sampling
+samples = slicesample(start,N_MCMC,'pdf',pdf,'burnin',N_burn);
+
+% Metropolis Hastings Sampling
+% proportional probability density to posterior
 pdf = @(x)max(likelihood(l_vec, B_gamma, x', C) * prior(x', priors, prior_doms), realmin); % pdf cannot be 0 for MCMC
 proppdf = @(x,y) mvnpdf(y,x);
 proprnd = @(x) mvnrnd(x, eye(n_as));
-samples = mhsample(start, N_MCMC, 'pdf', pdf, 'proppdf', proppdf, 'proprnd', proprnd, 'burnin', N_burn);
+%samples = mhsample(start, N_MCMC, 'pdf', pdf, 'proppdf', proppdf, 'proprnd', proprnd, 'burnin', N_burn,'nchain',1);
+samples = mhsample(start, N_MCMC, 'pdf', pdf, 'proprnd', proprnd, 'burnin', N_burn,'symmetric',1,'nchain',1);
+
 
 % Use kernel density estimation to generate a smooth approximation of the
 % posterior
 posteriors = zeros([n_as,100]);
 posterior_doms = zeros([n_as,100]);
+
+n_as = size(priors,1);
 for i = 1:n_as
     [posteriors(i,:), posterior_doms(i,:)] = ksdensity(samples(:,i));
 end
+
+%}
 
 % normalize posteriors (technically ksdensity discretely approximates a pdf)
 posteriors = posteriors./sum(posteriors,2);
@@ -76,7 +94,7 @@ end
 
 % get the density matrix
 aa_vec = [a_vec;1];
-rho = rho_a_HG(aa_vec,C);
+rho = rho_a_HG(aa_vec, C);
 
 % get the probabilities of each measurement outcome
 [V,~] = eig(B_gamma);
@@ -119,10 +137,20 @@ function p_a = prior(a_vec, priors, prior_doms)
 % ----------------------------------------------------------------
 % p_a           : probability P(a_vec)
 
-p_a_vec = zeros(size(a_vec));
+
+%{
+% Discrete Distribution Case
+% get domain points nearest to sample point (in a Manahatten distance
+% sense)
+[~,p_ind] = min(abs(prior_doms-a_vec),[],2);
+% determine the prior probabilites of the sample for each of the parameters
+p_a_vec = priors(sub2ind(size(priors),1:size(priors,1),p_ind'));
+%}
+
+% Continuous Distribution Case
+p_a_vec = zeros([numel(a_vec),1]);
 for i = 1:numel(a_vec)
-    [~,p_a_ind] = min(abs(prior_doms(i,:)-a_vec(i)));
-    p_a_vec(i) =  priors(i,p_a_ind(1));
+   p_a_vec(i) = interp1(prior_doms(i,:),priors(i,:),a_vec(i));
 end
 
 % handle numerically unstable cases
@@ -134,8 +162,103 @@ end
 end
 
 
+
+
+function [posteriors, posterior_doms] = interior_sampling(pdf)
+% Brute force samples the joint distribution p(l|a)*p(a) over a domain of
+% interest and marginalizes to get posteriors. For debugging only on a
+% small 2x2 image.
+    N = 51;
+    a1 = linspace(-.5,.5,N); 
+    a2 = linspace(-.5,.5,N);
+    a3 = linspace(-.5,.5,N);
+    
+    [A1,A2,A3] = meshgrid(a1,a2,a3);
+    
+    p_a_vec = zeros(size(A1));
+    for i = 1:numel(A1)
+        a_vec  = [A1(i);A2(i);A3(i)];
+        p_a_vec(i) = pdf(a_vec);
+    end
+    
+    p_a_vec = p_a_vec / sum(p_a_vec(:));
+    
+    % marginalize
+    p_a1 = reshape(sum(p_a_vec,[2,3]),[1,N]);
+    p_a2 = reshape(sum(p_a_vec,[1,3]),[1,N]);
+    p_a3 = reshape(sum(p_a_vec,[1,2]),[1,N]);
+    
+    posterior_doms = [a1;a2;a3];
+    posteriors = [p_a1;p_a2;p_a3];
+end
+
+
+function F = check_prop_posterior(l_vec, B_gamma, C, priors, prior_doms, posteriors, posterior_doms)
+    
+    N = 51;
+    a1 = linspace(-1,1,N); 
+    a2 = linspace(-1,1,N);
+    a3 = linspace(-1,1,N);
+    %a1 = linspace(min(posterior_doms(1,:)),max(posterior_doms(1,:)),N);
+    %a2 = linspace(min(posterior_doms(2,:)),max(posterior_doms(2,:)),N);
+    %a3 = linspace(min(posterior_doms(3,:)),max(posterior_doms(3,:)),N);
+    [A1,A2,A3] = meshgrid(a1,a2,a3);
+
+    F = zeros(size(A1));
+    for i = 1:N^3
+        a_vec  = [A1(i),A2(i),A3(i)]';
+        F(i) = likelihood(l_vec, B_gamma, a_vec, C)*prior(a_vec, priors, prior_doms);
+    end
+    
+    
+    figure
+    title('Uniform volumeteric sampling of posterior')
+    FF = (F-min(F(:)))/max(F(:));
+    scatter3(A1(:),A2(:),A3(:),FF(:)*36+1e-5,FF(:))
+    xlabel('a1')
+    ylabel('a2')
+    zlabel('a3')
+    
+    % marginalize
+    FF_a1 = squeeze(sum(FF,[2,3]));
+    FF_a2 = squeeze(sum(FF,[1,3]));
+    FF_a3 = squeeze(sum(FF,[1,2]));
+    
+    % compare prop_posterior to posterior found by MCMC
+    
+    % MCMC posteriors
+    figure
+    title('MCMC Posteriors')
+    subplot(1,3,1)
+    plot(posterior_doms(1,:),posteriors(1,:))
+    xlabel('a_1')
+    subplot(1,3,2)
+    plot(posterior_doms(2,:),posteriors(2,:))
+    xlabel('a_2')
+    subplot(1,3,3)
+    plot(posterior_doms(3,:),posteriors(3,:))
+    xlabel('a_3')
+    
+    
+    % unnormalized uniform sampling posteriors
+    figure
+    subplot(1,3,1)
+    plot(a1,FF_a1)
+    xlabel('a_1')
+    subplot(1,3,2)
+    plot(a2,FF_a2)
+    xlabel('a_2')
+    subplot(1,3,3)
+    plot(a3,FF_a3)
+    xlabel('a_3')
+    
+    
+end
+
+
+
 function p_a = GBM_prior(a_vec,mu,z,q)
-% Calculates the probabbility of observing a_vec given the GBM prior
+% Calculates the probability of observing a_vec given the GBM prior
 % ----------------------------------------------------------------
 % INPUTS:
 % ----------------------------------------------------------------
