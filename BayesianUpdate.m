@@ -30,38 +30,45 @@ function [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, C,
 %                     contains the domain points associated with points on
 %                     the posterior distribution. 
 
-
-
-% Interior Sampling (only works for low-dimensional cases)
-pdf = @(x)max(likelihood(l_vec, B_gamma, x, C) * prior(x, priors, prior_doms), realmin);
-[posteriors,posterior_doms] = interior_sampling(pdf);
-
-%{
-% MCMC Sampling Methods
-
-% Slice Sampling
-samples = slicesample(start,N_MCMC,'pdf',pdf,'burnin',N_burn);
-
-% Metropolis Hastings Sampling
-% proportional probability density to posterior
-pdf = @(x)max(likelihood(l_vec, B_gamma, x', C) * prior(x', priors, prior_doms), realmin); % pdf cannot be 0 for MCMC
-proppdf = @(x,y) mvnpdf(y,x);
-proprnd = @(x) mvnrnd(x, eye(n_as));
-%samples = mhsample(start, N_MCMC, 'pdf', pdf, 'proppdf', proppdf, 'proprnd', proprnd, 'burnin', N_burn,'nchain',1);
-samples = mhsample(start, N_MCMC, 'pdf', pdf, 'proprnd', proprnd, 'burnin', N_burn,'symmetric',1,'nchain',1);
-
-
-% Use kernel density estimation to generate a smooth approximation of the
-% posterior
-posteriors = zeros([n_as,100]);
-posterior_doms = zeros([n_as,100]);
-
 n_as = size(priors,1);
-for i = 1:n_as
-    [posteriors(i,:), posterior_doms(i,:)] = ksdensity(samples(:,i));
+use_MCMC = 0;
+
+%% MCMC Sampling Methods
+if use_MCMC
+
+
+    % Slice Sampling
+    %pdf = @(x)max(likelihood(l_vec, B_gamma, x', C) * prior(x', priors, prior_doms), realmin); % pdf cannot be 0 for MCMC methods
+    pdf = @(x)likelihood(l_vec, B_gamma, x', C) * prior(x', priors, prior_doms);
+    samples = slicesample(start,N_MCMC,'pdf',pdf,'burnin',N_burn);
+
+
+    %{
+    % Metropolis Hastings Sampling
+    % proportional probability density to posterior
+    n_as = numel(start);
+    pdf = @(x)max(likelihood(l_vec, B_gamma, x', C) * prior(x', priors,
+    prior_doms), realmin); % pdf cannot be 0 for MCMC methods
+    proppdf = @(x,y) mvnpdf(y,x);
+    proprnd = @(x) mvnrnd(x, eye(n_as));
+    %samples = mhsample(start, N_MCMC, 'pdf', pdf, 'proppdf', proppdf, 'proprnd', proprnd, 'burnin', N_burn,'nchain',1);
+    samples = mhsample(start, N_MCMC, 'pdf', pdf, 'proprnd', proprnd, 'burnin', N_burn,'symmetric',1,'nchain',1);
+    %}
+
+    % Use kernel density estimation to generate a smooth approximation of the
+    % posterior
+    posteriors = zeros([n_as,100]);
+    posterior_doms = zeros([n_as,100]);
+
+    for i = 1:n_as
+        [posteriors(i,:), posterior_doms(i,:)] = ksdensity(samples(:,i));
+    end
+else
+    % Interior Sampling (only works for low-dimensional cases)
+    pdf = @(x)max(likelihood(l_vec, B_gamma, x, C) * prior(x, priors, prior_doms), realmin);
+    [posteriors,posterior_doms] = interior_sampling(pdf,n_as);
 end
 
-%}
 
 % normalize posteriors (technically ksdensity discretely approximates a pdf)
 posteriors = posteriors./sum(posteriors,2);
@@ -161,47 +168,49 @@ else
 end
 end
 
-
-
-
-function [posteriors, posterior_doms] = interior_sampling(pdf)
-% Brute force samples the joint distribution p(l|a)*p(a) over a domain of
-% interest and marginalizes to get posteriors. For debugging only on a
-% small 2x2 image.
-    N = 51;
-    a1 = linspace(-.5,.5,N); 
-    a2 = linspace(-.5,.5,N);
-    a3 = linspace(-.5,.5,N);
+function [posteriors,posterior_doms] = interior_sampling(pdf,n_as)
+% Brute force samples the pdf p(l|a)*p(a) over a domain of
+% interest and marginalizes to get posteriors.
+    %N_samples = 1e6;                    % use a million samples uniformly distributed over the volume of interest
+    N_samples = 36^3;
+    N = floor(N_samples^(1/n_as)); 
+    a_rng = linspace(-.5,.5,N);
+    [A{1:n_as}] = ndgrid(a_rng);
     
-    [A1,A2,A3] = meshgrid(a1,a2,a3);
+    p_a_vec = zeros(size(A{1}));
     
-    p_a_vec = zeros(size(A1));
-    for i = 1:numel(A1)
-        a_vec  = [A1(i);A2(i);A3(i)];
+    a_vec = zeros([n_as,1]);
+    for i = 1:numel(p_a_vec)
+        for j = 1:n_as
+            A_j = A{j}; 
+            a_vec(j) = A_j(i);
+        end
         p_a_vec(i) = pdf(a_vec);
     end
     
+    % normalize
     p_a_vec = p_a_vec / sum(p_a_vec(:));
     
     % marginalize
-    p_a1 = reshape(sum(p_a_vec,[2,3]),[1,N]);
-    p_a2 = reshape(sum(p_a_vec,[1,3]),[1,N]);
-    p_a3 = reshape(sum(p_a_vec,[1,2]),[1,N]);
+    posteriors = zeros(n_as,N);
+    for i = 1:n_as
+        sumover_idx = 1:n_as;
+        sumover_idx(i) = [];
+        posteriors(i,:) = reshape(sum(p_a_vec,sumover_idx),[1,N]);
+    end
     
-    posterior_doms = [a1;a2;a3];
-    posteriors = [p_a1;p_a2;p_a3];
+    posterior_doms = repmat(a_rng,[n_as,1]);
 end
+
 
 
 function F = check_prop_posterior(l_vec, B_gamma, C, priors, prior_doms, posteriors, posterior_doms)
     
     N = 51;
-    a1 = linspace(-1,1,N); 
-    a2 = linspace(-1,1,N);
-    a3 = linspace(-1,1,N);
-    %a1 = linspace(min(posterior_doms(1,:)),max(posterior_doms(1,:)),N);
-    %a2 = linspace(min(posterior_doms(2,:)),max(posterior_doms(2,:)),N);
-    %a3 = linspace(min(posterior_doms(3,:)),max(posterior_doms(3,:)),N);
+    a1 = linspace(-.5,.5,N); 
+    a2 = linspace(-.5,.5,N);
+    a3 = linspace(-.5,.5,N);
+    
     [A1,A2,A3] = meshgrid(a1,a2,a3);
 
     F = zeros(size(A1));

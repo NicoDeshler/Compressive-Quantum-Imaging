@@ -2,9 +2,8 @@
 clear
 close all
 
-%load('db1_4sparse_4x4_img.mat');       % load in image
-%load('db1_2sparse_2x2_img.mat');
-%load('db1_3sparse_2x2_img.mat')
+% load in an image
+%load('db1_4sparse_4x4_img.mat');       
 img = abs(randn([2,2]));
 
 % Image variables
@@ -12,20 +11,21 @@ img_dims = size(img);                  % image dimension vector [y pixels, x pix
 img = img/sum(img,'all');              % normalized scene intensity distribution 
 
 % Imaging system (Gaussian PSF)
-sigma = img_dims(1);    % PSF width (in pixels)
-direct_imaging = imgaussfilt(img,sigma);    % what the image would look like after direct imaging
+rl = max(img_dims);                      % Rayleigh length (in pixels)
+sigma = rl;                              % gaussian PSF width (in pixels)
+img_direct = imgaussfilt(img,sigma); % what the image would look like after direct imaging
 
-% HG mode state space representation
-n_HG_modes = 6;                        % max number of 1D Hermite-Gauss modes to consider
-N_HG_modes = n_HG_modes*(n_HG_modes+1)/2;% total number of Hermite-Gauss modes considered
+% Truncated Hilbert space dimensionality (Hermite-Gauss Representation) 
+n_HG_modes = 6;                             % number of 1D Hermite-Gauss modes
+N_HG_modes = n_HG_modes*(n_HG_modes+1)/2;   % total number of 2D Hermite-Gauss modes
 
 % Wavelet decomposition
 WaveletName = 'db1';                   % wavelet type
-WaveletLevel = 1;                      % wavelet decomposition level (complete decomp)
+WaveletLevel = log2(max(img_dims));    % wavelet decomposition level (full-depth decomposition)
 [gt_theta_vec, wv_idx] = wavedec2(img,WaveletLevel,WaveletName);                 % ground truth wavelet coefficients
 gt_theta_vec = gt_theta_vec';
 n_thetas = numel(gt_theta_vec);        % number of wavelet coefficients
-n_as = n_thetas-1;                     % number of unconstrained parameters 
+n_as = n_thetas-1;                     % number of transformed parameters 
 
 % Wavelet integrals
 [f_vec,~] = wavedec2(ones(img_dims),WaveletLevel,WaveletName);              % wavelet integrals for normalization constraint
@@ -35,7 +35,7 @@ ff_vec = f_vec/(f_vec'*f_vec);                                              % wa
 % W matrix for transforming a_vec into theta_vec
 W = W_matrix(n_thetas, ff_vec);
 
-% ground truth unconstrained parameter vector
+% ground truth transformed parameter vector
 gt_aa_vec = W\gt_theta_vec;
 gt_a_vec = gt_aa_vec(1:end-1);
 
@@ -59,20 +59,18 @@ end
 C_vec = MatMulVecOp(W',A_vec);
 
 % photon collection variables
-N_iter = 1e6;                     % number of photons collected per bayesian update iteration
+N__pho_iter = 1e4;                % number of photons collected per Bayesian update iteration
 max_iter = 10;                    % number of Bayesian updates to perform
 
 % Metropolis-Hastings parameters
-n_MCMC = 1e5;                   % number of MCMC samples of the posterior distribution
-n_burn = 1e5;                   % number of MCMC burnin samples (number of samples discarded while Markov Chain converges to stationary distribution)
+n_MCMC = 5e4;                   % number of MCMC samples of the posterior distribution
+n_burn = 1e4;                   % number of MCMC burnin samples (number of samples discarded while Markov Chain converges to stationary distribution)
 
 % GBM prior parameters
-q = 1/4;                                       % fractional sparsity  K/N = (# non-zero params/ # params)
-z_min = .1;                                    % min variance
-z_max = 1;                                     % max variance
-
-%mu = repmat(gt_a_vec,[1,2]);                   % means for gaussian mixture random variables
-mu = zeros([n_thetas-1,2]);                     % means for gaussian mixture random variables
+q = 1/4;                                            % fractional sparsity  K/N = (# non-zero params/ # params)
+z_min = 1e-3;                                        % min variance
+z_max = .5;                                          % max variance
+mu = zeros([n_thetas-1,2]);                         % means for gaussian mixture random variables
 z = [z_min*ones([n_as,1]),z_max*ones([n_as,1])];    % variances for gaussian mixture randomv variables
 
 % Generate samples of GBM prior for creating probability density estimate
@@ -87,35 +85,46 @@ a_vec = zeros([n_as,1]);
 for i = 1:n_as
     % generate probability density estimate
     [GBM_priors(i,:), GBM_prior_doms(i,:)] = ksdensity(GBM_samples(i,:)); 
-    % normalize the priors to turn ksdensity Prob Density Fn to Prob Mass Fn
+    % normalize the priors to turn ksdensity output from a
+    % Prob Density Fn (PDF) to a Prob Mass Fn (PMF)
     GBM_priors(i,:) = GBM_priors(i,:)/sum(GBM_priors(i,:));
-    % sample the unconstrained parameter vector from the initial prior
+    % sample the transformed parameter vector from the initial prior
     a_vec(i) = datasample(GBM_prior_doms(i,:), 1,'weights',GBM_priors(i,:));
 end
-aa_vec = [a_vec; 1];                           % augmented unconstrained parameter vector
+% initialize an estimate of the transformed transformed parameters
+aa_vec = [a_vec; 1];                           
 
-% initialize the wavelet vector estimator
-theta_vec = W*aa_vec;                           % wavelet vector estimator
+% initialize an estimate of the wavelet coefficients
+theta_vec = W*aa_vec;
                      
-% initialize measurement matrix as the identity - measure directly the HG
-% modes
+% initialize the measurement matrix as the identity 
+% (equivalent to a POVM comprised of projectors onto the HG modes)
 B_gamma = eye(N_HG_modes);
-assert(ishermitian(B_gamma));
+assert(ishermitian(B_gamma) && trace(B_gamma)>0);
+
+%% Figures
+% set default interpreters to LaTex
+set(groot,'defaultAxesTickLabelInterpreter','latex');
+set(groot,'defaulttextinterpreter','latex');
+set(groot,'defaultLegendInterpreter','latex');
 
 %% Display Initialization Figures
-show_init_figs = 1;
+show_init_figs = 0;
 
 if show_init_figs
     % display input image
     figure(111)
     imagesc(img)
-    title('Input Image')
-    xticks((1:img_dims(1))-.5)
-    yticks((1:img_dims(2))-.5)
-    xticklabels({})
-    yticklabels({})
+    title('Target Image')
+    xticks((0:img_dims(1))+0.5)
+    yticks((0:img_dims(2))+0.5)
+    xticklabels((-img_dims(1)/2:img_dims(1)/2)/rl)
+    yticklabels((-img_dims(2)/2:img_dims(2)/2)/rl)
+    xlabel('$X [\sigma]$')
+    ylabel('$Y [\sigma]$')
     grid on
     axis('square')
+    colorbar
 
     % display the W matrix
     figure(112)
@@ -124,41 +133,31 @@ if show_init_figs
     caxis([min(W(:)),max(W(:))])
     yticks([])
     xticks(1:5)
-    xticklabels({'w_1','w_2','w_3','f'})
+    xticklabels({'$\mathbf{w_1}$','$\mathbf{w_2}$',...
+        '$\mathbf{w_3}$','$\mathbf{f}$'})
     axis 'square'
-    title('W matrix')
+    title('$\mathbf{W}$')
     axis('square')
-    axis('off')
+    colorbar
+    
+    % display ground truth transformed coefficients
+    figure(113)
+    stem(1:n_as, gt_a_vec,'filled','r')
+    xlim([0,n_as+1])
+    xticks(1:n_as)
+    xlabel('$i$')
+    ylim([-gt_theta_vec(1),gt_theta_vec(1)])
+    ylabel('$a_i$')
+    title('Transformed Coefficients $\vec{a}$')
 
     % display ground truth wavelet coefficients
-    figure(113)
-    stem(gt_theta_vec,'filled')
-    xlim([-1,n_thetas+1])
-    xlabel('Index $i$','interpreter','latex')
-    ylabel('Wavelet Coeff $\theta_i$','interpreter','latex')
-    title('Ground-Truth $\vec{\theta}$','interpreter','latex')
-
-    % display ground truth unconstrained coefficients
     figure(114)
-    stem(gt_a_vec,'filled')
-    xlim([-1,n_as+1])
-    xlabel('Index $i$','interpreter','latex')
-    ylabel('Unconstrained Coeff $a_i$','interpreter','latex')
-    title('Ground-Truth $\vec{a}$','interpreter','latex')
-
-
-    %{
-    % plot the wavelet decomposition tree
-    figure;
-    plotwavelet2(gt_theta_vec, wv_idx, WaveletLevel, WaveletName,16,'square')
-    title('Db1 Wavelet Decomposition Tree')
-    xticks((1:img_dims(1))-.5);
-    yticks((1:img_dims(2))-.5);
-    xticklabels({})
-    yticklabels({})
-    grid on
-    axis('square')
-    %}
+    stem(1:n_thetas, gt_theta_vec,'filled')
+    xlim([0,n_thetas+1])
+    xticks(1:n_thetas)
+    xlabel('$i$')
+    ylabel('$\theta_i$')
+    title('Ground-Truth Wavelet Coefficients $\vec{\theta} = \mathbf{W}^{-1}\tilde{\vec{a}}$')
 end
 
 %% Make video objects
@@ -166,49 +165,71 @@ make_videos = 1;
 
 if make_videos
     
-    vid_a = VideoWriter('UnconstrainedParams.avi');
+    vid_a = VideoWriter('TransformedParams.avi');
     vid_a.FrameRate = 3;
     open(vid_a)
     fig_a = figure(101);
+    fig_a.WindowState = 'maximized';
 
     vid_posteriors = VideoWriter('Posteriors.avi');
     vid_posteriors.FrameRate = 3;
     open(vid_posteriors)
     fig_posteriors = figure(102);
+    fig_posteriors.WindowState = 'maximized';
+    
+    vid_recon = VideoWriter('ImageRecon.avi');
+    vid_recon.FrameRate =3;
+    open(vid_recon)
+    fig_recon = figure(103);
+    fig_recon.WindowState = 'maximized';
+    
 end
 
 
 %% Run Adaptive Bayesian Inference Algorithm 
-% make coefficient convergence stack
-a_evo = zeros(n_as, max_iter);
-a_var_evo = zeros(n_as, max_iter);
+% array for plotting coefficient convergence
+a_evo = zeros([n_as, max_iter]);
+% array for plotting posterior convergence (via variance reduction)
+a_var_evo = zeros([n_as, max_iter]); 
+% array for plotting Euclidian distance between estimated wavelets and
+% ground truth
+theta_dist = zeros([1,max_iter]);
 
-% Bayesian Update
+% initial priors
 priors = GBM_priors;
 prior_doms = GBM_prior_doms;
+a_var_comp = z_max * ones(size(a_vec));
 
 N_collected = 0;     % number of photons collected
 iter = 1;
 while iter <= max_iter
      
     % simulate a measurement
-    l_vec = SimulateMeasurement(B_gamma, N_iter, A_vec, gt_theta_vec);
+    l_vec = SimulateMeasurement(B_gamma, N__pho_iter, A_vec, gt_theta_vec);
     
     % estimate the wavelet coefficients
-    MCMC_start = mvnrnd(zeros(size(a_vec)), eye(n_as)*1e-1);
+    %MCMC_start = mvnrnd(zeros(size(a_vec)), eye(n_as)*1e-1);
+    var_thresh = 1;
+    MCMC_start = a_vec.*(a_var_comp < var_thresh) + zeros([n_as,1]).*(a_var_comp >= var_thresh);
+    
+     
     [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec,B_gamma,C_vec,...
                                           priors, prior_doms, n_MCMC, n_burn, MCMC_start);
-    %%%%% fix param swap %%%%%%
-    %a_vec = flip(a_vec);
-    %posteriors = flip(posteriors,1);
-    %posterior_doms = flip(posterior_doms,1);
-                                      
+    
+    
+    % update augment transformed parameters
     aa_vec = [a_vec ; 1];
     
+    % update wavelet parameters
+    theta_vec = W*aa_vec;
+    
+    % updated image estimate
+    img_est = waverec2(theta_vec, wv_idx, WaveletName);
 
     % compute the variances and the means from the posteriors
     a_mu = sum(posteriors.*posterior_doms,2);
     a_var = sum(posteriors.*((posterior_doms-a_mu).^2),2);
+    a_var_comp = a_var;
     aa_mu = [a_mu; 1];
     aa_var = [a_var; 0];
     
@@ -243,96 +264,140 @@ while iter <= max_iter
     [V_gamma,~] = eig(B_gamma);
         
     % update the number of photons
-    N_collected = N_collected + N_iter;
+    N_collected = N_collected + N__pho_iter;
     
-    % update theta evolution stack (each time step is a new column)
+    % update convergence containers
     a_evo(:,iter) = a_vec;
     a_var_evo(:,iter) = a_var;
-    
-    % update iteration index
-    iter = iter + 1;
-    
+    theta_dist(iter) = norm(gt_theta_vec - theta_vec);
+        
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Write figures to video objects
     if make_videos
         
-        % parameter estimate
+        % TRANSFORMED PARAMETERS
         figure(fig_a)
-        stem(a_vec,'filled')
-        xlim([-1,n_as+1])
-        xlabel('Index $i$','interpreter','latex')
-        ylabel('Unconstrained Coeff $a_i$','interpreter','latex')
-        title('Estimate $\hat{a}$','interpreter','latex')
+        % plot ground truth parameters
+        stem(1:n_as, gt_a_vec,'filled','black','MarkerSize',5)
+        hold on
+        stem(1:n_as,a_vec,'red','MarkerSize',4)
+        hold off
+        xticks(1:n_as)
+        xlim([0,n_as+1])
+        xlabel('$i$')
+        ylabel('$a_i$')
+        ylim([-gt_theta_vec(1),gt_theta_vec(1)])
+        title('Transformed Parameters')
+        legend({'Ground Truth $\vec{a}$',['Estimate $\hat{\vec{a}}^{[',num2str(iter),']}$']})
         frame = getframe(fig_a);
         writeVideo(vid_a,frame)
         
-        % posteriors
+        % POSTERIORS
         figure(fig_posteriors)
-        % P(a1|l)
-        subplot(1,3,1)
-        plot(posterior_doms(1,:),posteriors(1,:))
-        xlabel('$a_1$','interpreter','latex')
-        ylabel('$P(a_1|\vec{l})$','interpreter','latex')
-        subplot(1,3,2)
-        % P(a2|l)
-        plot(posterior_doms(2,:),posteriors(2,:))
-        xlabel('$a_2$','interpreter','latex')
-        ylabel('$P(a_2|\vec{l})$','interpreter','latex')
-        % P(a3|l)
-        subplot(1,3,3)
-        plot(posterior_doms(3,:),posteriors(3,:))
-        xlabel('$a_3$','interpreter','latex')
-        ylabel('$P(a_3|\vec{l})$','interpreter','latex')
+        % subplot figure dimensions
+        fd1 = ceil(sqrt(n_as));
+        fd2 = fd1;
+        for i = 1:n_as
+            % P(a1|l)
+            subplot(fd1,fd2,i)
+            plot(posterior_doms(i,:),posteriors(i,:))
+            xlabel(['$a_',num2str(i),'$'])
+            ylabel(['$P(a_',num2str(i),'^{[',num2str(iter),']}|\vec{l})$'])
+            ylim([0,1])
+        end
         
         frame = getframe(fig_posteriors);
         writeVideo(vid_posteriors,frame)
+        
+        % RECONSTRUCTED IMAGE
+        figure(fig_recon);
+        % plot the ground truth
+        subplot(1,3,1)
+        imagesc(img)
+        title('Target')
+        xticks((0:img_dims(1))+0.5)
+        yticks((0:img_dims(2))+0.5)
+        xticklabels((-img_dims(1)/2:img_dims(1)/2)/rl)
+        yticklabels((-img_dims(2)/2:img_dims(2)/2)/rl)
+        xlabel('$X [\sigma]$')
+        ylabel('$Y [\sigma]$')
+        grid on
+        axis('square')
+        colorbar
+        caxis([min(img(:)),max(img(:))])
+        % plot the direct imaging scene
+        subplot(1,3,2)
+        imagesc(img_direct)
+        title('Direct Imaging')
+        xticks((0:img_dims(1))+0.5)
+        yticks((0:img_dims(2))+0.5)
+        xticklabels((-img_dims(1)/2:img_dims(1)/2)/rl)
+        yticklabels((-img_dims(2)/2:img_dims(2)/2)/rl)
+        xlabel('$X [\sigma]$')
+        ylabel('$Y [\sigma]$')
+        grid on
+        axis('square')
+        colorbar
+        caxis([min(img(:)),max(img(:))])
+        % plot the reconstruction
+        subplot(1,3,3)
+        imagesc(img_est)
+        title(['Estimate [iter: ',num2str(iter),']'])
+        xticks((0:img_dims(1))+0.5)
+        yticks((0:img_dims(2))+0.5)
+        xticklabels((-img_dims(1)/2:img_dims(1)/2)/rl)
+        yticklabels((-img_dims(2)/2:img_dims(2)/2)/rl)
+        xlabel('$X [\sigma]$')
+        ylabel('$Y [\sigma]$')
+        grid on
+        axis('square')
+        colorbar
+        caxis([min(img(:)),max(img(:))])
+        
+        frame = getframe(fig_recon);
+        writeVideo(vid_recon,frame)
     end
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    % update iteration index
+    iter = iter + 1;
 end
 
 % close video objects
 if make_videos
     close(vid_a)
     close(vid_posteriors)
+    close(vid_recon)
 end
 
-% Compare output to ground truth wavelet coefficients
-diff = gt_theta_vec - theta_vec;
-
-% image estimate
-img_out = waverec2(theta_vec,wv_idx,WaveletName);
-
-figure(115);
-imagesc(img_out);
-title('Image Estimate')
-%xticks((1:img_dims(1))-.5);
-%yticks((1:img_dims(2))-.5);
-xticks((0:img_dims(1))-.5);
-yticks((0:img_dims(2))-.5);
-
-%xticklabels({'$-Rl$','0','$+Rl$'},'interpreter','latex')
-%yticklabels({'$-Rl$','0','$+Rl$'},'interpreter','latex')
-grid on
-axis 'square'
-
-figure(116)
+% Convergence Plots
+fig_convergence = figure(116);
+fig_convergence.WindowState = 'maximized';
+subplot(1,3,1)
 imagesc(a_evo)
 title('Parameter Convergence')
 xlabel('Iteration')
-ylabel('$a_i$','interpreter','latex')
+ylabel('$a_i$')
 xticks(5:5:max_iter)
-yticks(1:n_thetas)
+yticks((0:n_as-1)+.5)
+axis('square')
 colorbar
 
-figure(117)
+subplot(1,3,2)
 imagesc(a_var_evo)
 title('Variance Convergence')
 xlabel('Iteration')
-ylabel('$Var(a_i)$','interpreter','latex')
+ylabel('$Var(a_i)$')
 xticks(5:5:max_iter)
-yticks(1:n_thetas)
+yticks((0:n_as-1)+.5)
+axis('square')
 colorbar
 
-
-
+subplot(1,3,3)
+plot(1:max_iter,theta_dist);
+title('Wavelet Error Convergence')
+xlabel('Iteration')
+ylabel('$||\mathbf{\theta}-\hat{\mathbf{\theta}}||_2$')
+xticks(5:5:max_iter)
+axis('square')
 
