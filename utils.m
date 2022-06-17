@@ -65,6 +65,29 @@ samples = zeros([numel(start),Ns+Nb]);
 end
 
 
+function x_mu = importance_sampling(pdf,N,n_as)
+
+    % reference distribution
+    f_mu = ones([n_as,1]);
+    f_sig = eye(n_as);    
+    f = @(x)mvnpdf(x,f_mu,f_sig);
+    
+    % get N samples from reference distribution
+    f_samples = mvnrnd(f_mu,f_sig,N);
+    
+    % approximate normalizing constant of pdf
+    C = 1/N * sum(pdf(f_samples)./f(f_samples));
+    
+    % approximate expected value of the normalized pdf
+    x_mu = 1/N * sum(f_samples.*pdf(f_samples)./(f_samples))/C;
+    
+    % approximate the variance of the normalized pdf
+    x_mu2 = 1/N * sum(f_samples.^2.*pdf(f_samples)./(f_samples))/C;
+    x_var = x_mu2 - x_mu.^2;
+    
+end
+        
+
 
 
 function is_pos = non_neg(a_vec, wv_idx,WaveletName)
@@ -75,4 +98,3 @@ function is_pos = non_neg(a_vec, wv_idx,WaveletName)
     img_est = waverec2(theta_vec, wv_idx, WaveletName);
     is_pos = min(img_est(:) >= 0;
 end
-

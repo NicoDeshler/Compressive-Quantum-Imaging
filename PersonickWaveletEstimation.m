@@ -11,9 +11,9 @@ img_dims = size(img);                  % image dimension vector [y pixels, x pix
 img = img/sum(img,'all');              % normalized scene intensity distribution 
 
 % Imaging system (Gaussian PSF)
-rl = max(img_dims);                      % Rayleigh length (in pixels)
-sigma = rl;                              % gaussian PSF width (in pixels)
-img_direct = imgaussfilt(img,sigma); % what the image would look like after direct imaging
+rl = 1;                                  % Rayleigh length (in pixels)
+sigma = rl*max(img_dims);                % Gaussian PSF width (in pixels)
+img_direct = imgaussfilt(img,sigma);     % what the image would look like after direct imaging
 
 % Truncated Hilbert space dimensionality (Hermite-Gauss Representation) 
 n_HG_modes = 6;                             % number of 1D Hermite-Gauss modes
@@ -60,7 +60,7 @@ C_vec = MatMulVecOp(W',A_vec);
 
 % photon collection variables
 N__pho_iter = 1e4;                % number of photons collected per Bayesian update iteration
-max_iter = 10;                    % number of Bayesian updates to perform
+max_iter = 100;                   % number of Bayesian updates to perform
 
 % Metropolis-Hastings parameters
 n_MCMC = 5e4;                   % number of MCMC samples of the posterior distribution
@@ -302,7 +302,7 @@ while iter <= max_iter
             subplot(fd1,fd2,i)
             plot(posterior_doms(i,:),posteriors(i,:))
             xlabel(['$a_',num2str(i),'$'])
-            ylabel(['$P(a_',num2str(i),'^{[',num2str(iter),']}|\vec{l})$'])
+            ylabel(['$P(a_{',num2str(i),'}^{[',num2str(iter),']}|\vec{l})$'])
             ylim([0,1])
         end
         
@@ -318,7 +318,7 @@ while iter <= max_iter
         xticks((0:img_dims(1))+0.5)
         yticks((0:img_dims(2))+0.5)
         xticklabels((-img_dims(1)/2:img_dims(1)/2)/rl)
-        yticklabels((-img_dims(2)/2:img_dims(2)/2)/rl)
+        yticklabels(flip(-img_dims(2)/2:img_dims(2)/2)/rl)
         xlabel('$X [\sigma]$')
         ylabel('$Y [\sigma]$')
         grid on
@@ -332,7 +332,7 @@ while iter <= max_iter
         xticks((0:img_dims(1))+0.5)
         yticks((0:img_dims(2))+0.5)
         xticklabels((-img_dims(1)/2:img_dims(1)/2)/rl)
-        yticklabels((-img_dims(2)/2:img_dims(2)/2)/rl)
+        yticklabels(flip(-img_dims(2)/2:img_dims(2)/2)/rl)
         xlabel('$X [\sigma]$')
         ylabel('$Y [\sigma]$')
         grid on
@@ -346,7 +346,7 @@ while iter <= max_iter
         xticks((0:img_dims(1))+0.5)
         yticks((0:img_dims(2))+0.5)
         xticklabels((-img_dims(1)/2:img_dims(1)/2)/rl)
-        yticklabels((-img_dims(2)/2:img_dims(2)/2)/rl)
+        yticklabels(flip(-img_dims(2)/2:img_dims(2)/2)/rl)
         xlabel('$X [\sigma]$')
         ylabel('$Y [\sigma]$')
         grid on
@@ -400,4 +400,7 @@ xlabel('Iteration')
 ylabel('$||\mathbf{\theta}-\hat{\mathbf{\theta}}||_2$')
 xticks(5:5:max_iter)
 axis('square')
+
+% save figure
+saveas(fig_convergence,'ConvergencePlots.png')
 
