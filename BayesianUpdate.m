@@ -31,7 +31,7 @@ function [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, C,
 %                     the posterior distribution. 
 
 n_as = size(priors,1);
-use_MCMC = 0;
+use_MCMC = 1;
 
 %% MCMC Sampling Methods
 if use_MCMC
@@ -47,8 +47,7 @@ if use_MCMC
     % Metropolis Hastings Sampling
     % proportional probability density to posterior
     n_as = numel(start);
-    pdf = @(x)max(likelihood(l_vec, B_gamma, x', C) * prior(x', priors,
-    prior_doms), realmin); % pdf cannot be 0 for MCMC methods
+    pdf = @(x) likelihood(l_vec, B_gamma, x', C) * prior(x', priors, prior_doms); % pdf cannot be 0 for MCMC methods
     proppdf = @(x,y) mvnpdf(y,x);
     proprnd = @(x) mvnrnd(x, eye(n_as));
     %samples = mhsample(start, N_MCMC, 'pdf', pdf, 'proppdf', proppdf, 'proprnd', proprnd, 'burnin', N_burn,'nchain',1);

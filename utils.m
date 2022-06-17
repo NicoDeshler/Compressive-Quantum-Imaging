@@ -54,3 +54,25 @@ function Y_vec = MatMulVecOp(A,X_vec)
 end
 
 
+
+function samples = MCMC_sampling(start,pdf,method,Ns,Nb)
+
+
+samples = zeros([numel(start),Ns+Nb]);
+
+    
+    
+end
+
+
+
+
+function is_pos = non_neg(a_vec, wv_idx,WaveletName)
+% returns 1 if the predicted image is non-negative
+% returns 0 otherwise
+    aa_vec = [a_vec; 0];
+    theta_vec = W*aa_vec;
+    img_est = waverec2(theta_vec, wv_idx, WaveletName);
+    is_pos = min(img_est(:) >= 0;
+end
+
