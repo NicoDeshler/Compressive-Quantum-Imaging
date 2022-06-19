@@ -1,5 +1,23 @@
 
-[img,coeffs] = gen_wavelet_sparse_img('db1',1,[2,2],.75);
+% Generate images that are sparse in wavelet domain
+%[img,coeffs] = gen_wavelet_sparse_img('db1',1,[2,2],.75);
+
+
+% Test importance sampling
+pdf_mu = [1,1];
+pdf_sig = eye(2);
+pdf = @(x) 5 * mvnpdf(x,pdf_mu,pdf_sig);
+N_samples = 1e6;
+ref_mu = [0,0];
+ref_sig = eye(2);
+
+[x_mu,x_sig] = importance_sampling(pdf,N_samples,ref_mu,ref_sig);
+
+
+
+
+
+
 
 function sample = sampleGBMPrior(q,mu,z)
     x1 = normrnd(mu(:,1),z(:,1));
@@ -65,29 +83,37 @@ samples = zeros([numel(start),Ns+Nb]);
 end
 
 
-function x_mu = importance_sampling(pdf,N,n_as)
-
-    % reference distribution
-    f_mu = ones([n_as,1]);
-    f_sig = eye(n_as);    
-    f = @(x)mvnpdf(x,f_mu,f_sig);
+function [x_mu,x_sig] = importance_sampling(pdf,N,ref_mu,ref_sig)
+    
+    % number of random variables
+    n = numel(ref_mu);
+    
+    % reference distribution (Multi-variate gaussian)
+    ref_pdf = @(x)mvnpdf(x,ref_mu,ref_sig);
     
     % get N samples from reference distribution
-    f_samples = mvnrnd(f_mu,f_sig,N);
+    f_samples = mvnrnd(ref_mu,ref_sig,N);
+    
+    % ratio of pdfs
+    pdf_ratio = pdf(f_samples)./ref_pdf(f_samples);
     
     % approximate normalizing constant of pdf
-    C = 1/N * sum(pdf(f_samples)./f(f_samples));
+    C = mean(pdf_ratio);
+    
+    % probability ratio
+    prob_ratio = pdf_ratio/C;
     
     % approximate expected value of the normalized pdf
-    x_mu = 1/N * sum(f_samples.*pdf(f_samples)./(f_samples))/C;
+    x_mu = mean(f_samples.*prob_ratio,1);
     
-    % approximate the variance of the normalized pdf
-    x_mu2 = 1/N * sum(f_samples.^2.*pdf(f_samples)./(f_samples))/C;
-    x_var = x_mu2 - x_mu.^2;
-    
+    % approximate the covariance matrix
+    delta = f_samples - x_mu;
+    d_vert = reshape(delta',[n,1,N]);
+    d_horz = reshape(delta',[1,n,N]);
+    dyad_stack = pagemtimes(d_vert,d_horz);
+    prob_ratio = reshape(prob_ratio,[1,1,N]);
+    x_sig = mean(dyad_stack.*prob_ratio,3);
 end
-        
-
 
 
 function is_pos = non_neg(a_vec, wv_idx,WaveletName)
@@ -96,5 +122,5 @@ function is_pos = non_neg(a_vec, wv_idx,WaveletName)
     aa_vec = [a_vec; 0];
     theta_vec = W*aa_vec;
     img_est = waverec2(theta_vec, wv_idx, WaveletName);
-    is_pos = min(img_est(:) >= 0;
+    is_pos = min(img_est(:)) >= 0;
 end

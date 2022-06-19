@@ -1,5 +1,5 @@
 % Bayesian update for the posterior
-function [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, C, priors, prior_doms, N_MCMC, N_burn, start)
+function [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, C, priors, prior_doms, N_samples, method, varargin)
 % Updates the estimate for the constrained parameter vector a_vec using a
 % Bayesian inference scheme. The posterior distribution is also approximated
 % from MCMC samples. The Likelihood is computed from the most recent measurement
@@ -16,7 +16,7 @@ function [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, C,
 % prior_doms: A matrix of dimensions [numel(a_vec),100]. Each row
 %             contains the domain points associated with points on the prior
 %             distribution.
-% N_MCMC    : number of Metropolis-Hastings MCMC samples used to compute
+% N_samples    : number of Metropolis-Hastings MCMC samples used to compute
 %             approximate the posterior.
 % N_burn    : number of Metropolis-Hasting MCMC samples to discard in order
 %             to let the Markov Chain reach steady state.
@@ -29,48 +29,69 @@ function [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, C,
 % posterior_domains : A matrix of dimensions [n_params-1,100]. Each row
 %                     contains the domain points associated with points on
 %                     the posterior distribution. 
+% ----------------------------------------------------------------
+% NAME/VALUE:
+% ----------------------------------------------------------------
 
+
+p = inputParser;
 n_as = size(priors,1);
-use_MCMC = 1;
 
-%% MCMC Sampling Methods
-if use_MCMC
+switch method
+    case 'interior'
+        % Interior Sampling (works well for low-dimensional cases)
+        addParameter(p,'a_min',-.5)
+        addParameter(p,'a_max',+.5)
+        parse(p, varargin{:})
+        
+        a_min = p.Results.a_min;
+        a_max = p.Results.a_max;
+        
+        pdf = @(x) likelihood(l_vec, B_gamma, x, C) * prior(x, priors, prior_doms);
+        [posteriors,posterior_doms] = interior_sampling(pdf,N_samples,n_as,a_min,a_max);
+        
+    case 'importance'
+        % Importance Sampling (approximaes all posteriors using first and
+        % second moments only)
+        
+        addParameter(p,'ref_mu',ones(1,n_as))
+        addParameter(p,'ref_sigma',eye(n_as))
+        parse(p, varargin{:})
+        
+        ref_mu = p.Results.ref_mu;
+        ref_sigma = p.Results.ref_sigma;        
+        
+        pdf =  @(x) likelihood(l_vec, B_gamma, x, C) * prior(x, priors, prior_doms);
+        [posteriors,posterior_doms] = importance_sampling(pdf,N_samples,n_as,ref_mu,ref_sigma);
+    
+    case 'slice'
+        % Slice MCMC method
+        addParameter(p,'N_burn',floor(N_samples/10))
+        addParameter(p,'start',zeros(1,n_as))
+        parse(p, varargin{:})
+        
+        N_burn = p.Results.N_burn;
+        start = p.Results.start;
 
+        pdf = @(x)likelihood(l_vec, B_gamma, x', C) * prior(x', priors, prior_doms);
+        [posteriors, posterior_doms] = slice_sampling(pdf,N_samples,n_as,N_burn,start);
+    
+    case 'MH'
+        % Metropolis-Hastings MCMC method
+        addParameter(p,'N_burn',floor(N_samples/10))
+        addParameter(p,'start',zeros(1,n_as))
+        parse(p, varargin{:})
 
-    % Slice Sampling
-    %pdf = @(x)max(likelihood(l_vec, B_gamma, x', C) * prior(x', priors, prior_doms), realmin); % pdf cannot be 0 for MCMC methods
-    pdf = @(x)likelihood(l_vec, B_gamma, x', C) * prior(x', priors, prior_doms);
-    samples = slicesample(start,N_MCMC,'pdf',pdf,'burnin',N_burn);
-
-
-    %{
-    % Metropolis Hastings Sampling
-    % proportional probability density to posterior
-    n_as = numel(start);
-    pdf = @(x) likelihood(l_vec, B_gamma, x', C) * prior(x', priors, prior_doms); % pdf cannot be 0 for MCMC methods
-    proppdf = @(x,y) mvnpdf(y,x);
-    proprnd = @(x) mvnrnd(x, eye(n_as));
-    %samples = mhsample(start, N_MCMC, 'pdf', pdf, 'proppdf', proppdf, 'proprnd', proprnd, 'burnin', N_burn,'nchain',1);
-    samples = mhsample(start, N_MCMC, 'pdf', pdf, 'proprnd', proprnd, 'burnin', N_burn,'symmetric',1,'nchain',1);
-    %}
-
-    % Use kernel density estimation to generate a smooth approximation of the
-    % posterior
-    posteriors = zeros([n_as,100]);
-    posterior_doms = zeros([n_as,100]);
-
-    for i = 1:n_as
-        [posteriors(i,:), posterior_doms(i,:)] = ksdensity(samples(:,i));
-    end
-else
-    % Interior Sampling (only works for low-dimensional cases)
-    pdf = @(x)max(likelihood(l_vec, B_gamma, x, C) * prior(x, priors, prior_doms), realmin);
-    [posteriors,posterior_doms] = interior_sampling(pdf,n_as);
+        N_burn = p.Results.N_burn;
+        start = p.Results.start;
+        
+        pdf = @(x)likelihood(l_vec, B_gamma, x', C) * prior(x', priors, prior_doms);
+        [posteriors, posterior_doms] = MH_sampling(pdf,N_samples,n_as,N_burn,start);
+        
+    otherwise
+        error('Unsupported sampling method.')
 end
 
-
-% normalize posteriors (technically ksdensity discretely approximates a pdf)
-posteriors = posteriors./sum(posteriors,2);
 
 % MMSE estimator is given by the mean of the posterior
 a_vec = sum(posteriors.*posterior_doms,2);
@@ -92,11 +113,6 @@ function p_l = likelihood(l_vec, B_gamma, a_vec, C)
 % OUTPUTS:
 % ----------------------------------------------------------------
 % p_l       : the probability of the outcome l_vec
-
-[~,max_dim_idx] = max(size(a_vec));    
-if max_dim_idx == 2
-    a_vec = a_vec';
-end
 
 % get the density matrix
 aa_vec = [a_vec;1];
@@ -167,13 +183,15 @@ else
 end
 end
 
-function [posteriors,posterior_doms] = interior_sampling(pdf,n_as)
+function p_a = constrained_prior(a_vec,priors,prior_doms,W,wv_idx,WaveletName)
+    p_a  =  prior(a_vec,priors,prior_doms) * non_neg(a_vec,W,wv_idx,WaveletName);
+end
+
+function [posteriors, posterior_doms] = interior_sampling(pdf,N_samples,n_as,a_min,a_max)
 % Brute force samples the pdf p(l|a)*p(a) over a domain of
 % interest and marginalizes to get posteriors.
-    %N_samples = 1e6;                    % use a million samples uniformly distributed over the volume of interest
-    N_samples = 36^3;
     N = floor(N_samples^(1/n_as)); 
-    a_rng = linspace(-.5,.5,N);
+    a_rng = linspace(a_min,a_max,N);
     [A{1:n_as}] = ndgrid(a_rng);
     
     p_a_vec = zeros(size(A{1}));
@@ -201,8 +219,95 @@ function [posteriors,posterior_doms] = interior_sampling(pdf,n_as)
     posterior_doms = repmat(a_rng,[n_as,1]);
 end
 
+function [posteriors, posterior_doms] = importance_sampling(pdf,N_samples,n_as,ref_mu,ref_sig)
+    
+    % reference distribution (Multi-variate gaussian)
+    ref_pdf = @(x)mvnpdf(x,ref_mu',ref_sig);
+    
+    % get N samples from reference distribution
+    ref_samples = mvnrnd(ref_mu',ref_sig,N_samples);
+    
+    % ratio of pdfs
+    sample_pdf = cellfun(pdf,num2cell(ref_samples',1))';
+    pdf_ratio = sample_pdf./ref_pdf(ref_samples);
+    
+    % approximate normalizing constant of pdf
+    C = mean(pdf_ratio);
+    
+    % probability ratio
+    prob_ratio = pdf_ratio/C;
+    
+    % approximate expected value of the normalized pdf
+    x_mu = mean(ref_samples.*prob_ratio,1);
+    
+    % approximate the covariance matrix
+    delta = ref_samples - x_mu;
+    d_vert = reshape(delta',[n_as,1,N_samples]);
+    d_horz = reshape(delta',[1,n_as,N_samples]);
+    dyad_stack = pagemtimes(d_vert,d_horz);
+    prob_ratio = reshape(prob_ratio,[1,1,N_samples]);
+    x_sig = mean(dyad_stack.*prob_ratio,3);
+    
+    % assume the posterior follows a gaussian
+    samples = mvnrnd(x_mu,x_sig,N_samples);
+    
+    % Use kernel density estimation to generate a smooth approximation of the
+    % posterior
+    posteriors = zeros([n_as,100]);
+    posterior_doms = zeros([n_as,100]);
+    for i = 1:n_as
+        [posteriors(i,:), posterior_doms(i,:)] = ksdensity(samples(:,i));
+    end
+    
+    % normalize posteriors
+    posteriors = posteriors./sum(posteriors,2);
+end
+
+function [posteriors,posterior_doms] = slice_sampling(pdf,N_samples,n_as,N_burn,start)
+    % Slice Sampling
+    samples = slicesample(start, N_samples,'pdf',pdf,'burnin',N_burn);
+
+    % Use kernel density estimation to generate a smooth approximation of the
+    % posterior
+    posteriors = zeros([n_as,100]);
+    posterior_doms = zeros([n_as,100]);
+    for i = 1:n_as
+        [posteriors(i,:), posterior_doms(i,:)] = ksdensity(samples(:,i));
+    end
+    
+    % normalize posteriors
+    posteriors = posteriors./sum(posteriors,2);
+end
+
+function [posteriors,posterior_doms]= MH_sampling(pdf,N_samples,n_as,N_burn,start)
+    % Metropolis Hastings Sampling
+    % proportional probability density to posterior
+    proprnd = @(x) mvnrnd(x, eye(n_as));
+    samples = mhsample(start, N_samples, 'pdf', pdf, 'proprnd', proprnd, 'burnin', N_burn,'symmetric',1,'nchain',1);
+    
+    % Use kernel density estimation to generate a smooth approximation of the
+    % posterior
+    posteriors = zeros([n_as,100]);
+    posterior_doms = zeros([n_as,100]);
+    for i = 1:n_as
+        [posteriors(i,:), posterior_doms(i,:)] = ksdensity(samples(:,i));
+    end
+    
+    % normalize posteriors
+    posteriors = posteriors./sum(posteriors,2);
+end
+
+function is_pos = non_neg(a_vec,W,wv_idx,WaveletName)
+% returns 1 if the predicted image is non-negative
+% returns 0 otherwise
+    aa_vec = [a_vec; 0];
+    theta_vec = W*aa_vec;
+    img_est = waverec2(theta_vec, wv_idx, WaveletName);
+    is_pos = min(img_est(:)) >= 0;
+end
 
 
+%% LEGACY SCRIPTS
 function F = check_prop_posterior(l_vec, B_gamma, C, priors, prior_doms, posteriors, posterior_doms)
     
     N = 51;
@@ -262,8 +367,6 @@ function F = check_prop_posterior(l_vec, B_gamma, C, priors, prior_doms, posteri
     
     
 end
-
-
 
 function p_a = GBM_prior(a_vec,mu,z,q)
 % Calculates the probability of observing a_vec given the GBM prior

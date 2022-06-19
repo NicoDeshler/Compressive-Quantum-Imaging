@@ -62,9 +62,10 @@ C_vec = MatMulVecOp(W',A_vec);
 N__pho_iter = 1e4;                % number of photons collected per Bayesian update iteration
 max_iter = 100;                   % number of Bayesian updates to perform
 
-% Metropolis-Hastings parameters
-n_MCMC = 5e4;                   % number of MCMC samples of the posterior distribution
-n_burn = 1e4;                   % number of MCMC burnin samples (number of samples discarded while Markov Chain converges to stationary distribution)
+% sampling method and parameters
+sampling_method = 'importance';    % ['interior','importance','slice','MH']
+N_samples = 5e5;                   % number of samples taken to approximate the posterior distribution
+
 
 % GBM prior parameters
 q = 1/4;                                            % fractional sparsity  K/N = (# non-zero params/ # params)
@@ -74,9 +75,9 @@ mu = zeros([n_thetas-1,2]);                         % means for gaussian mixture
 z = [z_min*ones([n_as,1]),z_max*ones([n_as,1])];    % variances for gaussian mixture randomv variables
 
 % Generate samples of GBM prior for creating probability density estimate
-x0 = mvnrnd(mu(:,1),diag(z(:,1)),n_MCMC)';
-x1 = mvnrnd(mu(:,2),diag(z(:,2)),n_MCMC)';
-coinflips = binornd(1,q,[n_as,n_MCMC]);
+x0 = mvnrnd(mu(:,1),diag(z(:,1)),N_samples)';
+x1 = mvnrnd(mu(:,2),diag(z(:,2)),N_samples)';
+coinflips = binornd(1,q,[n_as,N_samples]);
 GBM_samples = ~coinflips.*x0 + coinflips.*x1;
 
 GBM_priors = zeros(n_as,100);
@@ -198,7 +199,8 @@ theta_dist = zeros([1,max_iter]);
 % initial priors
 priors = GBM_priors;
 prior_doms = GBM_prior_doms;
-a_var_comp = z_max * ones(size(a_vec));
+a_mu = sum(priors.*prior_doms,2);
+a_var = sum(priors.*((prior_doms-a_mu).^2),2);
 
 N_collected = 0;     % number of photons collected
 iter = 1;
@@ -207,16 +209,43 @@ while iter <= max_iter
     % simulate a measurement
     l_vec = SimulateMeasurement(B_gamma, N__pho_iter, A_vec, gt_theta_vec);
     
-    % estimate the wavelet coefficients
-    %MCMC_start = mvnrnd(zeros(size(a_vec)), eye(n_as)*1e-1);
-    var_thresh = 1;
-    MCMC_start = a_vec.*(a_var_comp < var_thresh) + zeros([n_as,1]).*(a_var_comp >= var_thresh);
-    
-     
-    [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec,B_gamma,C_vec,...
-                                          priors, prior_doms, n_MCMC, n_burn, MCMC_start);
-    
-    
+    % sample the posteriors and estimate the wavelet coefficients
+    switch sampling_method
+        case 'interior'
+            a_min = -.5;
+            a_max = .5;
+            
+            [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma,C_vec,...
+                                                  priors, prior_doms, N_samples, sampling_method,...
+                                                  'a_min',a_min,'a_max',a_max);
+                                              
+        case 'importance'
+            ref_mu = a_mu;
+            ref_sigma = diag(a_var);
+            
+            [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma,C_vec,...
+                                                  priors, prior_doms, N_samples, sampling_method,...
+                                                  'ref_mu',ref_mu,'ref_sigma',ref_sigma);
+            
+        case 'slice'
+            N_burn = 1e4;
+            var_thresh = 1;
+            MCMC_start = a_vec.*(a_var < var_thresh) + zeros([n_as,1]).*(a_var >= var_thresh);
+            
+            [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, C_vec,...
+                                                  priors, prior_doms, N_samples, sampling_method,...
+                                                  'N_burn',N_burn,'start', MCMC_start);
+        case 'MH'
+            N_burn = 1e4;
+            var_thresh = 1;
+            MCMC_start = a_vec.*(a_var < var_thresh) + zeros([n_as,1]).*(a_var >= var_thresh);
+            
+            [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma,C_vec,...
+                                                  priors, prior_doms, N_samples, sampling_method,...
+                                                  'N_burn',N_burn,'start', MCMC_start);
+        otherwise
+    end
+        
     % update augment transformed parameters
     aa_vec = [a_vec ; 1];
     
