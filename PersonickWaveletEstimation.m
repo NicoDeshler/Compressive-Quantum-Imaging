@@ -3,20 +3,21 @@ clear
 close all
 
 % load in an image
-load('db1_4sparse_4x4_img.mat');       
-%img = abs(randn([2,2]));
+%load('db1_4sparse_4x4_img.mat');
+%img = abs(randn([4,4]));
+img = abs(randn([2,2]));
 
 % Image variables
 img_dims = size(img);                  % image dimension vector [y pixels, x pixels]
 img = img/sum(img,'all');              % normalized scene intensity distribution 
 
 % Imaging system (Gaussian PSF)
-rl = 1;                                  % Rayleigh length (in pixels)
-sigma = rl*max(img_dims);                % Gaussian PSF width (in pixels)
-img_direct = imgaussfilt(img,sigma);     % what the image would look like after direct imaging
+rl = max(img_dims);                     % Rayleigh length (in pixels)
+psf_width = rl;                         % Gaussian PSF width (in pixels)
+img_direct = imgaussfilt(img,psf_width);     % what the image would look like after direct imaging
 
 % Truncated Hilbert space dimensionality (Hermite-Gauss Representation) 
-n_HG_modes = 6;                             % number of 1D Hermite-Gauss modes
+n_HG_modes = 10;                             % number of 1D Hermite-Gauss modes
 N_HG_modes = n_HG_modes*(n_HG_modes+1)/2;   % total number of 2D Hermite-Gauss modes
 
 % Wavelet decomposition
@@ -42,12 +43,35 @@ gt_a_vec = gt_aa_vec(1:end-1);
 % wavelet operators (pairs with theta_vec)
 A_vec = A_stack_HG(img_dims,n_HG_modes,n_thetas,WaveletName,WaveletLevel);
 
+%{
 % normalize wavelet operators so that [tr(A1), tr(A2),...,tr(AN)] = f_vec
 for i = 1:n_thetas
-    if f_vec(i) ~= 0
-       A_vec(:,:,i) = A_vec(:,:,i)/trace(A_vec(:,:,i)) * f_vec(i);
+    if trace(A_vec(:,:,i)) ~= 0 %  && f_vec(i) ~= 0
+       A_vec(:,:,i) = A_vec(:,:,i) ./ trace(A_vec(:,:,i)) .* f_vec(i);
     end
 end
+%}
+
+%{
+tr_A_vec = zeros(n_thetas,1);
+for i = 1:n_thetas
+    tr_A_vec(i) = trace(A_vec(:,:,i));
+end
+
+% check which traces match the integral vector
+equal_trace = abs(squeeze(tr_A_vec) - f_vec) < 1e-10;
+
+% fix inconsistencies in the trace
+for i = 1:n_thetas
+    if ~equal_trace(i)
+        if tr_A_vec(i)
+            A_vec(:,:,i) = A_vec(:,:,i) ./ tr_A_vec(i) .* f_vec(i);
+        else
+            error('Matrix Trace of wavelet operator is zero while integral of wavelet is non-zero.')
+        end
+    end
+end
+%}
 
 
 
@@ -59,18 +83,18 @@ end
 C_vec = MatMulVecOp(W',A_vec);
 
 % photon collection variables
-N__pho_iter = 1e4;                % number of photons collected per Bayesian update iteration
-max_iter = 100;                   % number of Bayesian updates to perform
+N_pho_iter = 1e3;                % number of photons collected per Bayesian update iteration
+max_iter = 10;                   % number of Bayesian updates to perform
 
 % sampling method and parameters
 sampling_method = 'importance';    % ['interior','importance','slice','MH']
-N_samples = 5e5;                   % number of samples taken to approximate the posterior distribution
+N_samples = 1e4;                   % number of samples taken to approximate the posterior distribution
 
 
 % GBM prior parameters
-q = 1/4;                                            % fractional sparsity  K/N = (# non-zero params/ # params)
-z_min = 1e-3;                                        % min variance
-z_max = .5;                                          % max variance
+q = .25;                                            % fractional sparsity  K/N = (# non-zero params/ # params)
+z_min = 1e-3;                                     % min variance
+z_max = 1e-1;                                     % max variance
 mu = zeros([n_thetas-1,2]);                         % means for gaussian mixture random variables
 z = [z_min*ones([n_as,1]),z_max*ones([n_as,1])];    % variances for gaussian mixture randomv variables
 
@@ -207,7 +231,7 @@ iter = 1;
 while iter <= max_iter
      
     % simulate a measurement
-    l_vec = SimulateMeasurement(B_gamma, N__pho_iter, A_vec, gt_theta_vec);
+    l_vec = SimulateMeasurement(B_gamma, N_pho_iter, A_vec, gt_theta_vec);
     
     % sample the posteriors and estimate the wavelet coefficients
     switch sampling_method
@@ -217,14 +241,17 @@ while iter <= max_iter
             
             [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma,C_vec,...
                                                   priors, prior_doms, N_samples, sampling_method,...
+                                                  W,wv_idx,WaveletName,...
                                                   'a_min',a_min,'a_max',a_max);
                                               
         case 'importance'
             ref_mu = a_mu;
             ref_sigma = diag(a_var);
-            
+            %ref_mu  = gt_a_vec;
+            %ref_sigma = diag(ones(n_as,1))*1e-1;
             [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma,C_vec,...
                                                   priors, prior_doms, N_samples, sampling_method,...
+                                                  W,wv_idx,WaveletName,...
                                                   'ref_mu',ref_mu,'ref_sigma',ref_sigma);
             
         case 'slice'
@@ -234,6 +261,7 @@ while iter <= max_iter
             
             [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, C_vec,...
                                                   priors, prior_doms, N_samples, sampling_method,...
+                                                  W,wv_idx,WaveletName,...
                                                   'N_burn',N_burn,'start', MCMC_start);
         case 'MH'
             N_burn = 1e4;
@@ -242,6 +270,7 @@ while iter <= max_iter
             
             [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma,C_vec,...
                                                   priors, prior_doms, N_samples, sampling_method,...
+                                                  W,wv_idx,WaveletName,...
                                                   'N_burn',N_burn,'start', MCMC_start);
         otherwise
     end
@@ -293,7 +322,7 @@ while iter <= max_iter
     [V_gamma,~] = eig(B_gamma);
         
     % update the number of photons
-    N_collected = N_collected + N__pho_iter;
+    N_collected = N_collected + N_pho_iter;
     
     % update convergence containers
     a_evo(:,iter) = a_vec;
@@ -330,7 +359,7 @@ while iter <= max_iter
             % P(a1|l)
             subplot(fd1,fd2,i)
             plot(posterior_doms(i,:),posteriors(i,:))
-            xlabel(['$a_',num2str(i),'$'])
+            xlabel(['$a_{',num2str(i),'}$'])
             ylabel(['$P(a_{',num2str(i),'}^{[',num2str(iter),']}|\vec{l})$'])
             ylim([0,1])
         end

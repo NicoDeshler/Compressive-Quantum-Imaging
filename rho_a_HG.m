@@ -16,6 +16,6 @@ function rho_1 = rho_a_HG(aa_vec, C)
 % rho_1      : the density matrix
 
 rho_1 = MatMulVecOp(aa_vec',C);
-
+%disp(['rho trace: ', num2str(trace(rho_1))])
 end
 

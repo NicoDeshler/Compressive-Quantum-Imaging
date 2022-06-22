@@ -1,5 +1,8 @@
 % Bayesian update for the posterior
-function [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, C, priors, prior_doms, N_samples, method, varargin)
+function [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, C, priors, prior_doms,...
+                                                                N_samples, method,...
+                                                                W,wv_idx,WaveletName,...
+                                                                varargin)
 % Updates the estimate for the constrained parameter vector a_vec using a
 % Bayesian inference scheme. The posterior distribution is also approximated
 % from MCMC samples. The Likelihood is computed from the most recent measurement
@@ -47,7 +50,7 @@ switch method
         a_min = p.Results.a_min;
         a_max = p.Results.a_max;
         
-        pdf = @(x) likelihood(l_vec, B_gamma, x, C) * prior(x, priors, prior_doms);
+        pdf = @(x) likelihood(l_vec, B_gamma, x, C) * constrained_prior(x, priors, prior_doms, W, wv_idx, WaveletName);
         [posteriors,posterior_doms] = interior_sampling(pdf,N_samples,n_as,a_min,a_max);
         
     case 'importance'
@@ -61,7 +64,7 @@ switch method
         ref_mu = p.Results.ref_mu;
         ref_sigma = p.Results.ref_sigma;        
         
-        pdf =  @(x) likelihood(l_vec, B_gamma, x, C) * prior(x, priors, prior_doms);
+        pdf =  @(x) likelihood(l_vec, B_gamma, x, C) * constrained_prior(x, priors, prior_doms, W, wv_idx, WaveletName);
         [posteriors,posterior_doms] = importance_sampling(pdf,N_samples,n_as,ref_mu,ref_sigma);
     
     case 'slice'
@@ -73,7 +76,7 @@ switch method
         N_burn = p.Results.N_burn;
         start = p.Results.start;
 
-        pdf = @(x)likelihood(l_vec, B_gamma, x', C) * prior(x', priors, prior_doms);
+        pdf = @(x)likelihood(l_vec, B_gamma, x', C) * constrained_prior(x', priors, prior_doms, W, wv_idx, WaveletName);
         [posteriors, posterior_doms] = slice_sampling(pdf,N_samples,n_as,N_burn,start);
     
     case 'MH'
@@ -85,7 +88,7 @@ switch method
         N_burn = p.Results.N_burn;
         start = p.Results.start;
         
-        pdf = @(x)likelihood(l_vec, B_gamma, x', C) * prior(x', priors, prior_doms);
+        pdf = @(x)likelihood(l_vec, B_gamma, x', C) * constrained_prior(x', priors, prior_doms, W, wv_idx, WaveletName);
         [posteriors, posterior_doms] = MH_sampling(pdf,N_samples,n_as,N_burn,start);
         
     otherwise
@@ -121,6 +124,8 @@ rho = rho_a_HG(aa_vec, C);
 % get the probabilities of each measurement outcome
 [V,~] = eig(B_gamma);
 p_outcomes = diag(V'*rho*V);
+
+%disp(['Prob Sum: ', num2str(sum(p_outcomes))]) 
 
 % take absolute value for numerical stability
 p_outcomes = abs(p_outcomes);
@@ -172,15 +177,10 @@ p_a_vec = priors(sub2ind(size(priors),1:size(priors,1),p_ind'));
 % Continuous Distribution Case
 p_a_vec = zeros([numel(a_vec),1]);
 for i = 1:numel(a_vec)
-   p_a_vec(i) = interp1(prior_doms(i,:),priors(i,:),a_vec(i));
+   p_a_vec(i) = interp1(prior_doms(i,:),priors(i,:),a_vec(i),'nearest','extrap');
 end
 
-% handle numerically unstable cases
-if sum(isnan(p_a_vec))>0
-    p_a = 0;
-else
-    p_a = prod(p_a_vec);
-end
+p_a = prod(p_a_vec);
 end
 
 function p_a = constrained_prior(a_vec,priors,prior_doms,W,wv_idx,WaveletName)
@@ -231,6 +231,9 @@ function [posteriors, posterior_doms] = importance_sampling(pdf,N_samples,n_as,r
     sample_pdf = cellfun(pdf,num2cell(ref_samples',1))';
     pdf_ratio = sample_pdf./ref_pdf(ref_samples);
     
+    % remove numerically unstable points
+    pdf_ratio = pdf_ratio(~isnan(pdf_ratio));
+    
     % approximate normalizing constant of pdf
     C = mean(pdf_ratio);
     
@@ -261,6 +264,7 @@ function [posteriors, posterior_doms] = importance_sampling(pdf,N_samples,n_as,r
     
     % normalize posteriors
     posteriors = posteriors./sum(posteriors,2);
+    
 end
 
 function [posteriors,posterior_doms] = slice_sampling(pdf,N_samples,n_as,N_burn,start)
@@ -297,13 +301,13 @@ function [posteriors,posterior_doms]= MH_sampling(pdf,N_samples,n_as,N_burn,star
     posteriors = posteriors./sum(posteriors,2);
 end
 
-function is_pos = non_neg(a_vec,W,wv_idx,WaveletName)
+function is_non_neg = non_neg(a_vec,W,wv_idx,WaveletName)
 % returns 1 if the predicted image is non-negative
 % returns 0 otherwise
-    aa_vec = [a_vec; 0];
+    aa_vec = [a_vec; 1];
     theta_vec = W*aa_vec;
     img_est = waverec2(theta_vec, wv_idx, WaveletName);
-    is_pos = min(img_est(:)) >= 0;
+    is_non_neg = min(img_est(:)) >= 0;
 end
 
 

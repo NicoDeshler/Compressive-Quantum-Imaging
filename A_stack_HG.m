@@ -54,7 +54,7 @@ for i = 1:N_modes
         m = HG_proj(j).ind_x;
         n = HG_proj(j).ind_y;
         
-        % f = <HG_pq|Psi(x,y)><Psi(x,y)|HG_mn>
+        % g(X,Y) = <HG_pq|Psi(X,Y)><Psi(X,Y)|HG_mn>
         XX = (X/2/sigma_x);
         YY = (Y/2/sigma_y);
         
@@ -63,12 +63,13 @@ for i = 1:N_modes
             1/sqrt(factorial(p)*factorial(q) ...
             *factorial(m)*factorial(n));
         
-       % wavelet transform f                        
-       [C1,~] = wavedec2(g, WaveletLevel, WaveletName);
-       A_stack(i,j,:) = C1;        
+       % wavelet transform g(X,Y)       
+       [w,~] = wavedec2(g, WaveletLevel, WaveletName);
+       
+       % assign wavelet coefficients from each wavelet to matrix element in
+       % stack
+       A_stack(i,j,:) = w;        
     end
 end
-
-%A_i(:,:,1) = A_i(:,:,1)/trace(A_i(:,:,1)) * f_vec(1)/(8*2*pi*sigma_x*sigma_y);
 
 end
