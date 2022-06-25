@@ -165,7 +165,7 @@ if show_init_figs
 end
 
 %% Make video objects
-make_videos = 1;
+make_videos = 0;
 
 if make_videos
     
@@ -421,6 +421,13 @@ if make_videos
     close(vid_recon)
 end
 
+save('Config_Recon_Data.mat','a_evo','a_var_evo','theta_dist',...
+    'WaveletName','WaveletLevel','wv_idx',...
+    'img','W','gt_a_vec','img_est',...
+    'n_HG_modes','N_pho_iter','max_iter',...
+    'N_samples','sampling_method')
+
+
 % Convergence Plots
 fig_convergence = figure(116);
 fig_convergence.WindowState = 'maximized';
@@ -454,4 +461,3 @@ axis('square')
 
 % save figure
 saveas(fig_convergence,'ConvergencePlots.png')
-
