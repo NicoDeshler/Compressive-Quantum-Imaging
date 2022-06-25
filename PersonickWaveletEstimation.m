@@ -9,7 +9,7 @@ img = abs(randn([4,4]));
 
 % Image variables
 img_dims = size(img);                  % image dimension vector [y pixels, x pixels]
-img = img/sum(img,'all');              % normalized scene intensity distribution 
+img = img/sum(img(:));              % normalized scene intensity distribution 
 
 % Imaging system (Gaussian PSF)
 rl = max(img_dims);                     % Rayleigh length (in pixels)
