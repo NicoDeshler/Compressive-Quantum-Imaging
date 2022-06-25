@@ -1,5 +1,5 @@
 % Bayesian update for the posterior
-function [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, C, priors, prior_doms,...
+function [a_vec, a_mu_post, a_cov_post, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, C, priors, prior_doms,...
                                                                 N_samples, method,...
                                                                 W,wv_idx,WaveletName,...
                                                                 varargin)
@@ -27,6 +27,8 @@ function [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, C,
 % OUTPUTS:
 % ----------------------------------------------------------------
 % a_vec             : the updated estimate on the constrained parameter vector
+% a_mu_post         :
+% a_cov_post        :
 % posteriors        : A matrix of dimensions [n_params-1,100]. The i'th row contains
 %                     points on the i'th parameter's posterior distribution. 
 % posterior_domains : A matrix of dimensions [n_params-1,100]. Each row
@@ -40,66 +42,71 @@ function [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, C,
 p = inputParser;
 n_as = size(priors,1);
 
+prior_fn = @(x) ksdensity_prior(x,priors,prior_doms);
+pdf = @(x) likelihood(l_vec, B_gamma, x, C) * constrain_prior(x, prior_fn, W, wv_idx, WaveletName);
+
 switch method
     case 'interior'
         % Interior Sampling (works well for low-dimensional cases)
-        addParameter(p,'a_min',-.5)
-        addParameter(p,'a_max',+.5)
+        addRequired(p,'a_min')
+        addRequired(p,'a_max')
         parse(p, varargin{:})
         
         a_min = p.Results.a_min;
         a_max = p.Results.a_max;
         
-        pdf = @(x) likelihood(l_vec, B_gamma, x, C) * constrained_prior(x, priors, prior_doms, W, wv_idx, WaveletName);
-        [posteriors,posterior_doms] = interior_sampling(pdf,N_samples,n_as,a_min,a_max);
+        [posteriors, posterior_doms] = interior_sampling(pdf,N_samples,n_as,a_min,a_max);
         
     case 'importance'
-        % Importance Sampling (approximaes all posteriors using first and
-        % second moments only)
-        
-        addParameter(p,'ref_mu',ones(1,n_as))
-        addParameter(p,'ref_sigma',eye(n_as))
+        % Importance Sampling      
+        addRequired(p,'ref_mu')
+        addReqired(p,'ref_sigma')
         parse(p, varargin{:})
         
         ref_mu = p.Results.ref_mu;
         ref_sigma = p.Results.ref_sigma;        
         
-        pdf =  @(x) likelihood(l_vec, B_gamma, x, C) * constrained_prior(x, priors, prior_doms, W, wv_idx, WaveletName);
-        [posteriors,posterior_doms] = importance_sampling(pdf,N_samples,n_as,ref_mu,ref_sigma);
+        [posteriors, posterior_doms] = importance_sampling(pdf,N_samples,n_as,ref_mu,ref_sigma);
     
     case 'slice'
         % Slice MCMC method
-        addParameter(p,'N_burn',floor(N_samples/10))
-        addParameter(p,'start',zeros(1,n_as))
+        addRequired(p,'N_burn')
+        addRequired(p,'start')
         parse(p, varargin{:})
         
         N_burn = p.Results.N_burn;
         start = p.Results.start;
-
-        pdf = @(x)likelihood(l_vec, B_gamma, x', C) * constrained_prior(x', priors, prior_doms, W, wv_idx, WaveletName);
+        
         [posteriors, posterior_doms] = slice_sampling(pdf,N_samples,n_as,N_burn,start);
     
     case 'MH'
         % Metropolis-Hastings MCMC method
-        addParameter(p,'N_burn',floor(N_samples/10))
-        addParameter(p,'start',zeros(1,n_as))
+        addRequired(p,'N_burn')
+        addRequired(p,'start')
         parse(p, varargin{:})
 
         N_burn = p.Results.N_burn;
         start = p.Results.start;
         
-        pdf = @(x)likelihood(l_vec, B_gamma, x', C) * constrained_prior(x', priors, prior_doms, W, wv_idx, WaveletName);
         [posteriors, posterior_doms] = MH_sampling(pdf,N_samples,n_as,N_burn,start);
         
     otherwise
-        error('Unsupported sampling method.')
+        error('Unsupported sampling method.')        
 end
 
+
+% compute the variances and the means from the posteriors
+a_mu_post = sum(posteriors.*posterior_doms,2);
+a_var_post = sum(posteriors.*((posterior_doms-a_mu_post).^2),2);
+a_cov_post = diag(a_var_post);
 
 % MMSE estimator is given by the mean of the posterior
-a_vec = sum(posteriors.*posterior_doms,2);
+a_vec = a_mu;
 
 end
+
+
+%%%%%%%%%%%%%%%%%%%%%% LIKELIHOOD %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function p_l = likelihood(l_vec, B_gamma, a_vec, C)
 % The likelihood (probability) of observing l_vec under the measurement
@@ -145,7 +152,16 @@ if sum(isnan(p_l))>0
 end
 end
 
-function p_a = prior(a_vec, priors, prior_doms)
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% PRIOR %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function p_a = constrain_prior(a_vec,prior_fn, W,wv_idx,WaveletName)
+    % imposes non-negativity constraint
+    p_a = prior_fn(a_vec) * non_neg(a_vec,W,wv_idx,WaveletName);
+end
+
+
+function p_a = ksdensity_prior(a_vec, priors, prior_doms)
 % Calculates the probability of observing a_vec given
 % a generalized probability density approximation for each parameter.
 % This prior assumes the parameters are independent.
@@ -164,17 +180,6 @@ function p_a = prior(a_vec, priors, prior_doms)
 % ----------------------------------------------------------------
 % p_a           : probability P(a_vec)
 
-
-%{
-% Discrete Distribution Case
-% get domain points nearest to sample point (in a Manahatten distance
-% sense)
-[~,p_ind] = min(abs(prior_doms-a_vec),[],2);
-% determine the prior probabilites of the sample for each of the parameters
-p_a_vec = priors(sub2ind(size(priors),1:size(priors,1),p_ind'));
-%}
-
-% Continuous Distribution Case
 p_a_vec = zeros([numel(a_vec),1]);
 for i = 1:numel(a_vec)
    p_a_vec(i) = interp1(prior_doms(i,:),priors(i,:),a_vec(i),'nearest','extrap');
@@ -183,10 +188,7 @@ end
 p_a = prod(p_a_vec);
 end
 
-function p_a = constrained_prior(a_vec,priors,prior_doms,W,wv_idx,WaveletName)
-    p_a  =  prior(a_vec,priors,prior_doms) * non_neg(a_vec,W,wv_idx,WaveletName);
-end
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% SAMPLING METHODS %%%%%%%%%%%%%%%%%%%%%%%
 function [posteriors, posterior_doms] = interior_sampling(pdf,N_samples,n_as,a_min,a_max)
 % Brute force samples the pdf p(l|a)*p(a) over a domain of
 % interest and marginalizes to get posteriors.
@@ -204,7 +206,7 @@ function [posteriors, posterior_doms] = interior_sampling(pdf,N_samples,n_as,a_m
         end
         p_a_vec(i) = pdf(a_vec);
     end
-    
+       
     % normalize
     p_a_vec = p_a_vec / sum(p_a_vec(:));
     
@@ -218,6 +220,7 @@ function [posteriors, posterior_doms] = interior_sampling(pdf,N_samples,n_as,a_m
     
     posterior_doms = repmat(a_rng,[n_as,1]);
 end
+
 
 function [posteriors, posterior_doms] = importance_sampling(pdf,N_samples,n_as,ref_mu,ref_sig)
     
@@ -250,6 +253,7 @@ function [posteriors, posterior_doms] = importance_sampling(pdf,N_samples,n_as,r
     dyad_stack = pagemtimes(d_vert,d_horz);
     prob_ratio = reshape(prob_ratio,[1,1,N_samples]);
     x_sig = mean(dyad_stack.*prob_ratio,3);
+    
     
     % assume the posterior follows a gaussian
     samples = mvnrnd(x_mu,x_sig,N_samples);

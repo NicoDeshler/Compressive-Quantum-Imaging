@@ -83,13 +83,15 @@ end
 C_vec = MatMulVecOp(W',A_vec);
 
 % photon collection variables
-N_pho_iter = 1e3;                % number of photons collected per Bayesian update iteration
+N_pho_iter = 1e5;                % number of photons collected per Bayesian update iteration
 max_iter = 10;                   % number of Bayesian updates to perform
 
 % sampling method and parameters
 sampling_method = 'importance';    % ['interior','importance','slice','MH']
 N_samples = 1e4;                   % number of samples taken to approximate the posterior distribution
 
+% posterior method
+posterior_method = 'MVN';           % ['ksdensity','MVN']
 
 % GBM prior parameters
 q = .25;                                            % fractional sparsity  K/N = (# non-zero params/ # params)
@@ -223,8 +225,9 @@ theta_dist = zeros([1,max_iter]);
 % initial priors
 priors = GBM_priors;
 prior_doms = GBM_prior_doms;
-a_mu = sum(priors.*prior_doms,2);
-a_var = sum(priors.*((prior_doms-a_mu).^2),2);
+a_mu_prior = sum(priors.*prior_doms,2);
+a_var_prior = sum(priors.*((prior_doms-a_mu_prior).^2),2);
+a_cov_prior = diag(a_var_prior);
 
 N_collected = 0;     % number of photons collected
 iter = 1;
@@ -233,78 +236,79 @@ while iter <= max_iter
     % simulate a measurement
     l_vec = SimulateMeasurement(B_gamma, N_pho_iter, A_vec, gt_theta_vec);
     
-    % sample the posteriors and estimate the wavelet coefficients
+     % sample the posteriors and estimate the wavelet coefficients
     switch sampling_method
         case 'interior'
             a_min = -.5;
             a_max = .5;
+            varargin = {a_min,a_a_max};
             
-            [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma,C_vec,...
-                                                  priors, prior_doms, N_samples, sampling_method,...
-                                                  W,wv_idx,WaveletName,...
-                                                  'a_min',a_min,'a_max',a_max);
-                                              
         case 'importance'
-            ref_mu = a_mu;
-            ref_sigma = diag(a_var);
-            %ref_mu  = gt_a_vec;
-            %ref_sigma = diag(ones(n_as,1))*1e-1;
-            [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma,C_vec,...
-                                                  priors, prior_doms, N_samples, sampling_method,...
-                                                  W,wv_idx,WaveletName,...
-                                                  'ref_mu',ref_mu,'ref_sigma',ref_sigma);
-            
+            ref_mu = a_mu_prior;
+            ref_sigma = a_cov_prior;
+            varargin = {ref_mu,ref_sigma};
+             
         case 'slice'
             N_burn = 1e4;
             var_thresh = 1;
             MCMC_start = a_vec.*(a_var < var_thresh) + zeros([n_as,1]).*(a_var >= var_thresh);
+            varagin = {N_burn,MCMC_start};
             
-            [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma, C_vec,...
-                                                  priors, prior_doms, N_samples, sampling_method,...
-                                                  W,wv_idx,WaveletName,...
-                                                  'N_burn',N_burn,'start', MCMC_start);
         case 'MH'
             N_burn = 1e4;
             var_thresh = 1;
             MCMC_start = a_vec.*(a_var < var_thresh) + zeros([n_as,1]).*(a_var >= var_thresh);
+            varagin = {N_burn,MCMC_start};
             
-            [a_vec, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma,C_vec,...
-                                                  priors, prior_doms, N_samples, sampling_method,...
-                                                  W,wv_idx,WaveletName,...
-                                                  'N_burn',N_burn,'start', MCMC_start);
         otherwise
+            error('Invalid sampling method.')
     end
-        
-    % update augment transformed parameters
-    aa_vec = [a_vec ; 1];
     
+    switch posterior_method
+        case 'ksdensity'
+           [a_vec, a_mu_post, a_cov_post, posteriors, posterior_doms] = BayesianUpdate(l_vec, B_gamma,C_vec,...
+                                                  priors, prior_doms,...
+                                                  N_samples, sampling_method,...
+                                                  W,wv_idx,WaveletName,...
+                                                  varargin{:});
+                                              
+        % set the posteriors of current iteration as the priors for the next
+        % iteration
+        priors = posteriors;
+        prior_doms = posterior_doms;
+        plot_posteriors = 1;
+
+        case 'MVN'
+           [a_vec, a_mu_post, a_cov_post] = BayesianUpdate_MVNposterior(l_vec, B_gamma,C_vec,...
+                                                  a_mu_prior, a_cov_prior,...
+                                                  N_samples, sampling_method,...
+                                                  W,wv_idx,WaveletName,...
+                                                  varargin{:});
+        plot_posteriors = 0;
+        otherwise
+            error('Invalid posterior method.')
+    end
+            
+    % augment updated parameter variables
+    aa_vec = [a_vec ; 1];
+    aa_mu = [a_mu_post ; 1];
+    aa_cov = padarray(a_cov_post,[1,1],'post');
+        
     % update wavelet parameters
     theta_vec = W*aa_vec;
     
     % updated image estimate
     img_est = waverec2(theta_vec, wv_idx, WaveletName);
-
-    % compute the variances and the means from the posteriors
-    a_mu = sum(posteriors.*posterior_doms,2);
-    a_var = sum(posteriors.*((posterior_doms-a_mu).^2),2);
-    a_var_comp = a_var;
-    aa_mu = [a_mu; 1];
-    aa_var = [a_var; 0];
     
-    % set the posteriors of current iteration as the priors for the next
-    % iteration
-    priors = posteriors;
-    prior_doms = posterior_doms;
-    
-    % compute Gamma_0 and Gamma_i1
+    % compute Gamma_0 and {Gamma_i1}'s
     Gamma_0 = Gamma_0_HG(C_vec,aa_mu);
-    Gamma_i1 = Gamma_i1_HG(C_vec,aa_mu,aa_var);
+    Gamma_i1 = Gamma_i1_HG(C_vec,aa_mu,aa_cov);
     
     % compute the optimal parameter estimators {B_i} with the implicit SLD equation.
     B_vec = SLD_eval(Gamma_i1,Gamma_0);
     
     % compute the joint-parameter projection
-    E_Q = Sigma_Q(Gamma_0, B_vec, aa_mu, aa_var);
+    E_Q = Sigma_Q(Gamma_0, B_vec,aa_mu,aa_cov);
     E_Q = E_Q(1:end-1,1:end-1); % crop out augmented parameter
     [V_Q,lam] = eig(E_Q,'vector');
 
@@ -315,7 +319,8 @@ while iter <= max_iter
     h = [h;0];
     
     % calculate Gamma_1
-    Gamma_1 = Gamma_1_HG(C_vec,h,aa_mu,aa_var);
+    Gamma_1 = Gamma_1_HG(h,Gamma_i1);
+    
     
     % update the joint parameter estimator (measurement matrix) 
     B_gamma = SLD_eval(Gamma_1,Gamma_0);
@@ -326,9 +331,14 @@ while iter <= max_iter
     
     % update convergence containers
     a_evo(:,iter) = a_vec;
-    a_var_evo(:,iter) = a_var;
+    a_var_evo(:,iter) = diag(a_cov_post);
     theta_dist(iter) = norm(gt_theta_vec - theta_vec);
-        
+    
+    % set the mean and covariance of the posterior as the prior for the
+    % next iteration
+    a_mu_prior = a_mu_post;
+    a_cov_prior = a_cov_post;
+    
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Write figures to video objects
     if make_videos
@@ -350,22 +360,24 @@ while iter <= max_iter
         frame = getframe(fig_a);
         writeVideo(vid_a,frame)
         
-        % POSTERIORS
-        figure(fig_posteriors)
-        % subplot figure dimensions
-        fd1 = ceil(sqrt(n_as));
-        fd2 = fd1;
-        for i = 1:n_as
-            % P(a1|l)
-            subplot(fd1,fd2,i)
-            plot(posterior_doms(i,:),posteriors(i,:))
-            xlabel(['$a_{',num2str(i),'}$'])
-            ylabel(['$P(a_{',num2str(i),'}^{[',num2str(iter),']}|\vec{l})$'])
-            ylim([0,1])
+        if plot_posteriors
+            % POSTERIORS
+            figure(fig_posteriors)
+            % subplot figure dimensions
+            fd1 = ceil(sqrt(n_as));
+            fd2 = fd1;
+            for i = 1:n_as
+                % P(a1|l)
+                subplot(fd1,fd2,i)
+                plot(posterior_doms(i,:),posteriors(i,:))
+                xlabel(['$a_{',num2str(i),'}$'])
+                ylabel(['$P(a_{',num2str(i),'}^{[',num2str(iter),']}|\vec{l})$'])
+                ylim([0,1])
+            end
+
+            frame = getframe(fig_posteriors);
+            writeVideo(vid_posteriors,frame)
         end
-        
-        frame = getframe(fig_posteriors);
-        writeVideo(vid_posteriors,frame)
         
         % RECONSTRUCTED IMAGE
         figure(fig_recon);
