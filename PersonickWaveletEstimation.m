@@ -4,8 +4,8 @@ close all
 
 % load in an image
 %load('db1_4sparse_4x4_img.mat');
-%img = abs(randn([4,4]));
-img = abs(randn([2,2]));
+img = abs(randn([4,4]));
+%img = abs(randn([2,2]));
 
 % Image variables
 img_dims = size(img);                  % image dimension vector [y pixels, x pixels]
@@ -52,28 +52,6 @@ for i = 1:n_thetas
 end
 %}
 
-%{
-tr_A_vec = zeros(n_thetas,1);
-for i = 1:n_thetas
-    tr_A_vec(i) = trace(A_vec(:,:,i));
-end
-
-% check which traces match the integral vector
-equal_trace = abs(squeeze(tr_A_vec) - f_vec) < 1e-10;
-
-% fix inconsistencies in the trace
-for i = 1:n_thetas
-    if ~equal_trace(i)
-        if tr_A_vec(i)
-            A_vec(:,:,i) = A_vec(:,:,i) ./ tr_A_vec(i) .* f_vec(i);
-        else
-            error('Matrix Trace of wavelet operator is zero while integral of wavelet is non-zero.')
-        end
-    end
-end
-%}
-
-
 
 % Transform the wavelet operator stack A with W to define a new linear 
 % combination of operators. We treat the operator stack as a 'vector' of 
@@ -83,12 +61,11 @@ end
 C_vec = MatMulVecOp(W',A_vec);
 
 % photon collection variables
-N_pho_iter = 1e5;                % number of photons collected per Bayesian update iteration
-max_iter = 10;                   % number of Bayesian updates to perform
+N_pho_iter = 1e4;                % number of photons collected per Bayesian update iteration
 
 % sampling method and parameters
 sampling_method = 'importance';    % ['interior','importance','slice','MH']
-N_samples = 1e4;                   % number of samples taken to approximate the posterior distribution
+N_samples = 1e5;                   % number of samples taken to approximate the posterior distribution
 
 % posterior method
 posterior_method = 'MVN';           % ['ksdensity','MVN']
@@ -214,6 +191,9 @@ end
 
 
 %% Run Adaptive Bayesian Inference Algorithm 
+
+max_iter = 100;      % number of Bayesian updates to perform
+
 % array for plotting coefficient convergence
 a_evo = zeros([n_as, max_iter]);
 % array for plotting posterior convergence (via variance reduction)
@@ -241,9 +221,10 @@ while iter <= max_iter
         case 'interior'
             a_min = -.5;
             a_max = .5;
-            varargin = {a_min,a_a_max};
+            varargin = {a_min,a_max};
             
         case 'importance'
+            %ref_mu = gt_a_vec;
             ref_mu = a_mu_prior;
             ref_sigma = a_cov_prior;
             varargin = {ref_mu,ref_sigma};
@@ -284,7 +265,12 @@ while iter <= max_iter
                                                   N_samples, sampling_method,...
                                                   W,wv_idx,WaveletName,...
                                                   varargin{:});
+        % set the mean and covariance of the posterior for the current iteration
+        % as the parameters for the prior of the next iteration.
+        a_mu_prior = a_mu_post;
+        a_cov_prior = a_cov_post;
         plot_posteriors = 0;
+        
         otherwise
             error('Invalid posterior method.')
     end
@@ -333,11 +319,6 @@ while iter <= max_iter
     a_evo(:,iter) = a_vec;
     a_var_evo(:,iter) = diag(a_cov_post);
     theta_dist(iter) = norm(gt_theta_vec - theta_vec);
-    
-    % set the mean and covariance of the posterior as the prior for the
-    % next iteration
-    a_mu_prior = a_mu_post;
-    a_cov_prior = a_cov_post;
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Write figures to video objects

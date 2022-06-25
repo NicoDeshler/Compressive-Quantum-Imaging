@@ -135,9 +135,9 @@ p_outcomes = p_outcomes/sum(p_outcomes);
 p_l = mnpdf(l_vec, p_outcomes);
 
 % handle numerically unstable cases
-if sum(isnan(p_l))>0
-    p_l = 0;
-end
+%if sum(isnan(p_l))>0
+%    p_l = 0;
+%end
 end
 
 
@@ -145,7 +145,8 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% PRIOR %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function p_a = constrain_prior(a_vec,prior_fn,W,wv_idx,WaveletName)
     % imposes non-negativity constraint
-    p_a = prior_fn(a_vec) * non_neg(a_vec,W,wv_idx,WaveletName);
+    %p_a = prior_fn(a_vec) * non_neg(a_vec,W,wv_idx,WaveletName);
+    p_a = prior_fn(a_vec);
 end
 
 
