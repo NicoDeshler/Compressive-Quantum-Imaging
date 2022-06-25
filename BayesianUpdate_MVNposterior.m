@@ -253,6 +253,9 @@ function [a_mu_post, a_cov_post] = importance_sampling(pdf,N_samples,n_as,ref_mu
     a_cov_post = mean(dyad_stack.*prob_ratio,3);
     a_mu_post = a_mu_post';
     
+    disp(a_cov_post)
+    disp(a_mu_post)
+    
 end
 
 function [a_mu_post, a_cov_post] = slice_sampling(pdf,N_samples,n_as,N_burn,start)
