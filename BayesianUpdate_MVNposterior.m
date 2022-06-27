@@ -241,11 +241,12 @@ function [a_mu_post, a_cov_post] = importance_sampling(pdf,N_samples,n_as,ref_mu
     % (compatible with Matlab 2017)
     dyad_stack = zeros([n_as,n_as,N_samples]);
     for i=1:N_samples
-        dyad_stack(:,:,i) = d_horz(:,:,i)*d_vert(:,:,i);
+        dyad_stack(:,:,i) = d_vert(:,:,i)*d_horz(:,:,i);
     end
     
     prob_ratio = reshape(prob_ratio,[1,1,N_samples]);
     a_cov_post = mean(dyad_stack.*prob_ratio,3);
+    disp(a_cov_post)
     a_mu_post = a_mu_post';
 end
 

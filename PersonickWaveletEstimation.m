@@ -157,7 +157,17 @@ assert(ishermitian(B_gamma) && trace(B_gamma)>0);
 save_dir = fullfile('Testing',posterior_method,sampling_method,...
 [num2str(N_pho_iter/1000),'Kpho'],...
 [num2str(N_samples/1000),'Ksamps']);
+if exist(save_dir,'dir')
+    i = 1;
+    save_dir_x = fullfile(save_dir,'ex1');
+    while exist(save_dir_x, 'dir')
+        exi = ['ex',num2str(i)];
+        save_dir_x = fullfile(save_dir,exi);
+    end
+    save_dir = save_dir_x;
+end
 mkdir(save_dir)
+
 
 
 %% Figures
