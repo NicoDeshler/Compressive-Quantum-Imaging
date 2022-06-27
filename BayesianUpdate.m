@@ -251,8 +251,9 @@ function [posteriors, posterior_doms] = importance_sampling(pdf,N_samples,n_as,r
     % (compatible with Matlab 2017)
     dyad_stack = zeros([n_as,n_as,N_samples]);
     for i=1:N_samples
-        dyad_stack(:,:,i) = d_horz(:,:,i)*d_vert(:,:,i);
+        dyad_stack(:,:,i) = d_vert(:,:,i)*d_horz(:,:,i);
     end
+    
        
     prob_ratio = reshape(prob_ratio,[1,1,N_samples]);
     x_sig = mean(dyad_stack.*prob_ratio,3);
