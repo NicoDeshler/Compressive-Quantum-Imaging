@@ -3,8 +3,8 @@ clear
 close all
 
 % load in an image
-load('db1_4sparse_4x4_img.mat');
-%img = abs(randn([4,4]));
+%load('db1_4sparse_4x4_img.mat');
+img = abs(randn([4,4]));
 %img = abs(randn([2,2]));
 
 % Image variables
