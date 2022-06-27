@@ -130,8 +130,6 @@ rho = rho_a_HG(aa_vec, C);
 [V,~] = eig(B_gamma);
 p_outcomes = diag(V'*rho*V);
 
-%disp(['Prob Sum: ', num2str(sum(p_outcomes))]) 
-
 % take absolute value for numerical stability
 p_outcomes = abs(p_outcomes);
 
@@ -144,12 +142,6 @@ p_outcomes = p_outcomes/sum(p_outcomes);
 % likelihood is a multinomial
 p_l = mnpdf(l_vec, p_outcomes);
 
-%{
-% handle numerically unstable cases%
-if sum(isnan(p_l))>0
-    p_l = 0;
-end
-%}
 end
 
 

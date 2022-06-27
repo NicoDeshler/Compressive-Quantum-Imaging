@@ -132,8 +132,6 @@ rho = rho_a_HG(aa_vec, C);
 [V,~] = eig(B_gamma);
 p_outcomes = diag(V'*rho*V);
 
-%disp(['Prob Sum: ', num2str(sum(p_outcomes))]) 
-
 % take absolute value for numerical stability
 p_outcomes = abs(p_outcomes);
 
@@ -146,10 +144,6 @@ p_outcomes = p_outcomes/sum(p_outcomes);
 % likelihood is a multinomial
 p_l = mnpdf(l_vec, p_outcomes);
 
-% handle numerically unstable cases
-if sum(isnan(p_l))>0
-    p_l = 0;
-end
 end
 
 
@@ -250,10 +244,18 @@ function [posteriors, posterior_doms] = importance_sampling(pdf,N_samples,n_as,r
     delta = ref_samples - x_mu;
     d_vert = reshape(delta',[n_as,1,N_samples]);
     d_horz = reshape(delta',[1,n_as,N_samples]);
-    dyad_stack = pagemtimes(d_vert,d_horz);
+    
+    % (compatible with Matlab 2021a)
+    % dyad_stack = pagemtimes(d_vert,d_horz);
+    
+    % (compatible with Matlab 2017)
+    dyad_stack = zeros([n_as,n_as,N_samples]);
+    for i=1:N_samples
+        dyad_stack(:,:,i) = d_horz(:,:,i)*d_vert(:,:,i);
+    end
+       
     prob_ratio = reshape(prob_ratio,[1,1,N_samples]);
     x_sig = mean(dyad_stack.*prob_ratio,3);
-    
     
     % assume the posterior follows a gaussian
     samples = mvnrnd(x_mu,x_sig,N_samples);
