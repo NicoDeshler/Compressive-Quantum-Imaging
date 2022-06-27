@@ -175,19 +175,19 @@ if make_videos
     vid_a = VideoWriter(fullfile(save_dir,'TransformedParams.avi'));
     vid_a.FrameRate = 3;
     open(vid_a)
-    fig_a = figure(101);
+    fig_a = figure;
     fig_a.WindowState = 'maximized';
 
     vid_posteriors = VideoWriter(fullfile(save_dir,'Posteriors.avi'));
     vid_posteriors.FrameRate = 3;
     open(vid_posteriors)
-    fig_posteriors = figure(102);
+    fig_posteriors = figure;
     fig_posteriors.WindowState = 'maximized';
     
     vid_recon = VideoWriter(fullfile(save_dir,'ImageRecon.avi'));
     vid_recon.FrameRate =3;
     open(vid_recon)
-    fig_recon = figure(103);
+    fig_recon = figure;
     fig_recon.WindowState = 'maximized';
     
 end
@@ -436,7 +436,7 @@ save(fullfile(save_dir,'Config_Recon_Data.mat'),'a_evo','a_var_evo','theta_dist'
 
 
 % Convergence Plots
-fig_convergence = figure(116);
+fig_convergence = figure;
 fig_convergence.WindowState = 'maximized';
 subplot(1,3,1)
 imagesc(a_evo)
