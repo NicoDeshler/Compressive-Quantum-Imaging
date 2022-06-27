@@ -3,8 +3,8 @@ clear
 close all
 
 % load in an image
-%load('db1_4sparse_4x4_img.mat');
-img = abs(randn([4,4]));
+load('db1_4sparse_4x4_img.mat');
+%img = abs(randn([4,4]));
 %img = abs(randn([2,2]));
 
 % Image variables
@@ -17,7 +17,7 @@ psf_width = rl;                         % Gaussian PSF width (in pixels)
 img_direct = imgaussfilt(img,psf_width);     % what the image would look like after direct imaging
 
 % Truncated Hilbert space dimensionality (Hermite-Gauss Representation) 
-n_HG_modes = 10;                             % number of 1D Hermite-Gauss modes
+n_HG_modes = 12;                             % number of 1D Hermite-Gauss modes
 N_HG_modes = n_HG_modes*(n_HG_modes+1)/2;   % total number of 2D Hermite-Gauss modes
 
 % Wavelet decomposition
@@ -61,15 +61,18 @@ end
 C_vec = MatMulVecOp(W',A_vec);
 
 % photon collection variables
-N_pho_iter = 1e4;                % number of photons collected per Bayesian update iteration
+N_pho_iter = 1e5;                  % number of photons collected per Bayesian update iteration
 
 % sampling method and parameters
 sampling_method = 'importance';    % ['interior','importance','slice','MH']
-N_samples = 1e5;                   % number of samples taken to approximate the posterior distribution
+N_samples = 1e5;           % number of samples taken to approximate the posterior distribution
 
 % posterior method
-posterior_method = 'MVN';           % ['ksdensity','MVN']
+posterior_method = 'MVN';           % ['ksdensity','mvksdensity','MVN']
 
+
+
+%% GBM PRIOR SETUP
 % GBM prior parameters
 q = .25;                                            % fractional sparsity  K/N = (# non-zero params/ # params)
 z_min = 1e-3;                                     % min variance
@@ -77,26 +80,70 @@ z_max = 1e-1;                                     % max variance
 mu = zeros([n_thetas-1,2]);                         % means for gaussian mixture random variables
 z = [z_min*ones([n_as,1]),z_max*ones([n_as,1])];    % variances for gaussian mixture randomv variables
 
-% Generate samples of GBM prior for creating probability density estimate
+% compute mean and covariance matrix of GBM prior
+a_mu_GBM = (1-q)*mu(:,1) + q*mu(:,2);
+a_var_GBM = (1-q)*(z(:,1) + mu(:,1).^2) + q*(z(:,2) + mu(:,2).^2) - a_mu_GBM.^2;
+a_cov_GBM = diag(a_var_GBM);
+
+% Generate samples of GBM prior
 x0 = mvnrnd(mu(:,1),diag(z(:,1)),N_samples)';
 x1 = mvnrnd(mu(:,2),diag(z(:,2)),N_samples)';
 coinflips = binornd(1,q,[n_as,N_samples]);
 GBM_samples = ~coinflips.*x0 + coinflips.*x1;
 
-GBM_priors = zeros(n_as,100);
-GBM_prior_doms = zeros(n_as,100);
-a_vec = zeros([n_as,1]);
-for i = 1:n_as
-    % generate probability density estimate
-    [GBM_priors(i,:), GBM_prior_doms(i,:)] = ksdensity(GBM_samples(i,:)); 
-    % normalize the priors to turn ksdensity output from a
-    % Prob Density Fn (PDF) to a Prob Mass Fn (PMF)
-    GBM_priors(i,:) = GBM_priors(i,:)/sum(GBM_priors(i,:));
-    % sample the transformed parameter vector from the initial prior
-    a_vec(i) = datasample(GBM_prior_doms(i,:), 1,'weights',GBM_priors(i,:));
+
+switch posterior_method
+    case 'ksdensity'
+        
+        GBM_priors = zeros(n_as,100);
+        GBM_prior_doms = zeros(n_as,100);
+        for i = 1:n_as
+            % generate probability density estimate
+            [GBM_priors(i,:), GBM_prior_doms(i,:)] = ksdensity(GBM_samples(i,:)); 
+            % normalize the priors to turn ksdensity output from a
+            % Prob Density Fn (PDF) to a Prob Mass Fn (PMF)
+            GBM_priors(i,:) = GBM_priors(i,:)/sum(GBM_priors(i,:));
+        end
+                
+        % initialize prior variables
+        priors = GBM_priors;
+        prior_doms = GBM_prior_doms;
+
+           
+    case 'mvksdensity'
+        a_min = -0.5;
+        a_max = +0.5;
+        
+        % range to evaluate the posterior over
+        linear_dom = linspace(a_min,a_max,5);
+        [GBM_prior_dom{1:n_as}] = ndgrid(linear_dom);
+        GBM_prior_dom = cell2mat(arrayfun(@(x) {reshape(cell2mat(x),[numel(cell2mat(x)),1])},GBM_prior_dom));
+        
+        % Silverman's rule of thumb for the kernel bandwidth
+        silvermans_bw = sqrt(diag(a_cov_GBM)) .* ((4/(n_as+2)/N_samples)^(1/(n_as + 4)));
+
+        % get the GBM pdf
+        GBM_prior = mvksdensity(GBM_samples',GBM_prior_dom,'Bandwidth',silvermans_bw);
+
+        % initialize prior variables
+        prior = GBM_prior;
+        prior_dom = GBM_prior_dom;
+    case 'MVN'
+        % initialize prior variables
+        a_mu_prior = a_mu_GBM;
+        a_cov_prior = a_cov_GBM;
+    otherwise
+        error('Invalid posterior method')
 end
+
+% initialize the starting parameter estimate to one of the GBM samples
+a_vec = GBM_samples(:,randi(N_samples));
+
+
+%% Initialize estimation parameters
 % initialize an estimate of the transformed transformed parameters
-aa_vec = [a_vec; 1];                           
+% sample the transformed parameter vector from the initial prior
+aa_vec = [a_vec; 1];
 
 % initialize an estimate of the wavelet coefficients
 theta_vec = W*aa_vec;
@@ -106,89 +153,44 @@ theta_vec = W*aa_vec;
 B_gamma = eye(N_HG_modes);
 assert(ishermitian(B_gamma) && trace(B_gamma)>0);
 
+%% Make directory for saving results
+save_dir = fullfile('Testing',posterior_method,sampling_method,...
+[num2str(N_pho_iter/1000),'Kpho'],...
+[num2str(N_samples/1000),'Ksamps']);
+mkdir(save_dir)
+
+
 %% Figures
 % set default interpreters to LaTex
 set(groot,'defaultAxesTickLabelInterpreter','latex');
 set(groot,'defaulttextinterpreter','latex');
 set(groot,'defaultLegendInterpreter','latex');
 
-%% Display Initialization Figures
-show_init_figs = 0;
-
-if show_init_figs
-    % display input image
-    figure(111)
-    imagesc(img)
-    title('Target Image')
-    xticks((0:img_dims(1))+0.5)
-    yticks((0:img_dims(2))+0.5)
-    xticklabels((-img_dims(1)/2:img_dims(1)/2)/rl)
-    yticklabels((-img_dims(2)/2:img_dims(2)/2)/rl)
-    xlabel('$X [\sigma]$')
-    ylabel('$Y [\sigma]$')
-    grid on
-    axis('square')
-    colorbar
-
-    % display the W matrix
-    figure(112)
-    imagesc(W)
-    title('Parameter Transform Matrix')
-    caxis([min(W(:)),max(W(:))])
-    yticks([])
-    xticks(1:5)
-    xticklabels({'$\mathbf{w_1}$','$\mathbf{w_2}$',...
-        '$\mathbf{w_3}$','$\mathbf{f}$'})
-    axis 'square'
-    title('$\mathbf{W}$')
-    axis('square')
-    colorbar
-    
-    % display ground truth transformed coefficients
-    figure(113)
-    stem(1:n_as, gt_a_vec,'filled','r')
-    xlim([0,n_as+1])
-    xticks(1:n_as)
-    xlabel('$i$')
-    ylim([-gt_theta_vec(1),gt_theta_vec(1)])
-    ylabel('$a_i$')
-    title('Transformed Coefficients $\vec{a}$')
-
-    % display ground truth wavelet coefficients
-    figure(114)
-    stem(1:n_thetas, gt_theta_vec,'filled')
-    xlim([0,n_thetas+1])
-    xticks(1:n_thetas)
-    xlabel('$i$')
-    ylabel('$\theta_i$')
-    title('Ground-Truth Wavelet Coefficients $\vec{\theta} = \mathbf{W}^{-1}\tilde{\vec{a}}$')
-end
 
 %% Make video objects
-make_videos = 0;
+make_videos = 1;
 
 if make_videos
     
-    vid_a = VideoWriter('TransformedParams.avi');
+    vid_a = VideoWriter(fullfile(save_dir,'TransformedParams.avi'));
     vid_a.FrameRate = 3;
     open(vid_a)
     fig_a = figure(101);
     fig_a.WindowState = 'maximized';
 
-    vid_posteriors = VideoWriter('Posteriors.avi');
+    vid_posteriors = VideoWriter(fullfile(save_dir,'Posteriors.avi'));
     vid_posteriors.FrameRate = 3;
     open(vid_posteriors)
     fig_posteriors = figure(102);
     fig_posteriors.WindowState = 'maximized';
     
-    vid_recon = VideoWriter('ImageRecon.avi');
+    vid_recon = VideoWriter(fullfile(save_dir,'ImageRecon.avi'));
     vid_recon.FrameRate =3;
     open(vid_recon)
     fig_recon = figure(103);
     fig_recon.WindowState = 'maximized';
     
 end
-
 
 %% Run Adaptive Bayesian Inference Algorithm 
 
@@ -202,12 +204,6 @@ a_var_evo = zeros([n_as, max_iter]);
 % ground truth
 theta_dist = zeros([1,max_iter]);
 
-% initial priors
-priors = GBM_priors;
-prior_doms = GBM_prior_doms;
-a_mu_prior = sum(priors.*prior_doms,2);
-a_var_prior = sum(priors.*((prior_doms-a_mu_prior).^2),2);
-a_cov_prior = diag(a_var_prior);
 
 N_collected = 0;     % number of photons collected
 iter = 1;
@@ -232,13 +228,13 @@ while iter <= max_iter
         case 'slice'
             N_burn = 1e4;
             var_thresh = 1;
-            MCMC_start = a_vec.*(a_var < var_thresh) + zeros([n_as,1]).*(a_var >= var_thresh);
+            MCMC_start = a_mu;
             varagin = {N_burn,MCMC_start};
             
         case 'MH'
             N_burn = 1e4;
             var_thresh = 1;
-            MCMC_start = a_vec.*(a_var < var_thresh) + zeros([n_as,1]).*(a_var >= var_thresh);
+            MCMC_start = a_mu;
             varagin = {N_burn,MCMC_start};
             
         otherwise
@@ -258,6 +254,18 @@ while iter <= max_iter
         priors = posteriors;
         prior_doms = posterior_doms;
         plot_posteriors = 1;
+        
+        case 'mvksdesnsity'
+            [a_vec, a_mu_post, a_cov_post, posteriors, posterior_doms] = BayesianUpdate_mvksdensity(l_vec, B_gamma,C_vec,...
+                                                  prior, prior_dom,...
+                                                  N_samples, sampling_method,...
+                                                  W,wv_idx,WaveletName,...
+                                                  varargin{:});
+            
+            
+            prior = posterior;
+            prior_dom = posterior_dom;
+            plot_posterior = 0;
 
         case 'MVN'
            [a_vec, a_mu_post, a_cov_post] = BayesianUpdate_MVNposterior(l_vec, B_gamma,C_vec,...
@@ -306,7 +314,6 @@ while iter <= max_iter
     
     % calculate Gamma_1
     Gamma_1 = Gamma_1_HG(h,Gamma_i1);
-    
     
     % update the joint parameter estimator (measurement matrix) 
     B_gamma = SLD_eval(Gamma_1,Gamma_0);
@@ -421,7 +428,7 @@ if make_videos
     close(vid_recon)
 end
 
-save('Config_Recon_Data.mat','a_evo','a_var_evo','theta_dist',...
+save(fullfile(save_dir,'Config_Recon_Data.mat'),'a_evo','a_var_evo','theta_dist',...
     'WaveletName','WaveletLevel','wv_idx',...
     'img','W','gt_a_vec','img_est',...
     'n_HG_modes','N_pho_iter','max_iter',...
@@ -437,7 +444,7 @@ title('Parameter Convergence')
 xlabel('Iteration')
 ylabel('$a_i$')
 xticks(5:5:max_iter)
-yticks((0:n_as-1)+.5)
+yticks(1:n_as)
 axis('square')
 colorbar
 
@@ -447,7 +454,7 @@ title('Variance Convergence')
 xlabel('Iteration')
 ylabel('$Var(a_i)$')
 xticks(5:5:max_iter)
-yticks((0:n_as-1)+.5)
+yticks(1:n_as)
 axis('square')
 colorbar
 
@@ -460,4 +467,4 @@ xticks(5:5:max_iter)
 axis('square')
 
 % save figure
-saveas(fig_convergence,'ConvergencePlots.png')
+saveas(fig_convergence,fullfile(save_dir,'ConvergencePlots.png'))
