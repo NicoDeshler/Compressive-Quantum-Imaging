@@ -163,6 +163,7 @@ if exist(save_dir,'dir')
     while exist(save_dir_x, 'dir')
         exi = ['ex',num2str(i)];
         save_dir_x = fullfile(save_dir,exi);
+        i = i+1;
     end
     save_dir = save_dir_x;
 end
