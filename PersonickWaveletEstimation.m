@@ -1,11 +1,13 @@
+function PersonickWaveletEstimation(array_id)
 % INITIALIZATION
 clear
 close all
 
 % load in an image
+%img = abs(randn([2,2]));
 %load('db1_4sparse_4x4_img.mat');
 img = abs(randn([4,4]));
-%img = abs(randn([2,2]));
+
 
 % Image variables
 img_dims = size(img);                  % image dimension vector [y pixels, x pixels]
@@ -438,7 +440,7 @@ if make_videos
     close(vid_recon)
 end
 
-save(fullfile(save_dir,'Config_Recon_Data.mat'),'a_evo','a_var_evo','theta_dist',...
+save(fullfile(save_dir,['Config_Recon_Data_t',num2str(array_id),'.mat']),'a_evo','a_var_evo','theta_dist',...
     'WaveletName','WaveletLevel','wv_idx',...
     'img','W','gt_a_vec','img_est',...
     'n_HG_modes','N_pho_iter','max_iter',...
@@ -478,3 +480,4 @@ axis('square')
 
 % save figure
 saveas(fig_convergence,fullfile(save_dir,'ConvergencePlots.png'))
+end
