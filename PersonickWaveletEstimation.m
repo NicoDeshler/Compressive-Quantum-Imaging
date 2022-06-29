@@ -71,7 +71,7 @@ N_pho_iter = 1e5;                  % number of photons collected per Bayesian up
 
 % sampling method and parameters
 sampling_method = 'importance';    % ['interior','importance','slice','MH']
-N_samples = 1e2;           % number of samples taken to approximate the posterior distribution
+N_samples = 1e5;           % number of samples taken to approximate the posterior distribution
 
 % posterior method
 posterior_method = 'MVN';           % ['ksdensity','mvksdensity','MVN']
