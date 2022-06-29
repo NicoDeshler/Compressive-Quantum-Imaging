@@ -67,7 +67,7 @@ N_pho_iter = 1e5;                  % number of photons collected per Bayesian up
 
 % sampling method and parameters
 sampling_method = 'importance';    % ['interior','importance','slice','MH']
-N_samples = 1e2;           % number of samples taken to approximate the posterior distribution
+N_samples = 1e5;           % number of samples taken to approximate the posterior distribution
 
 % posterior method
 posterior_method = 'MVN';           % ['ksdensity','mvksdensity','MVN']
@@ -213,7 +213,7 @@ end
 
 %% Run Adaptive Bayesian Inference Algorithm 
 
-max_iter = 1;      % number of Bayesian updates to perform
+max_iter = 100;      % number of Bayesian updates to perform
 
 % array for plotting coefficient convergence
 a_evo = zeros([n_as, max_iter]);
