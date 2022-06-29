@@ -67,7 +67,7 @@ N_pho_iter = 1e5;                  % number of photons collected per Bayesian up
 
 % sampling method and parameters
 sampling_method = 'importance';    % ['interior','importance','slice','MH']
-N_samples = 1e5;           % number of samples taken to approximate the posterior distribution
+N_samples = 1e2;           % number of samples taken to approximate the posterior distribution
 
 % posterior method
 posterior_method = 'MVN';           % ['ksdensity','mvksdensity','MVN']
@@ -156,6 +156,8 @@ B_gamma = eye(N_HG_modes);
 assert(ishermitian(B_gamma) && trace(B_gamma)>0);
 
 %% Make directory for saving results
+
+%{
 save_dir = fullfile('Testing',posterior_method,sampling_method,...
 [num2str(N_pho_iter/1000),'Kpho'],...
 [num2str(N_samples/1000),'Ksamps']);
@@ -170,8 +172,13 @@ if exist(save_dir,'dir')
     save_dir = save_dir_x;
 end
 mkdir(save_dir)
-
-
+%}
+% save directory for cluster
+save_dir = fullfile('Testing','4x4_recon_study');
+if ~exist(save_dir,'dir')
+    mkdir(save_dir)
+end
+    
 
 %% Figures
 % set default interpreters to LaTex
@@ -206,7 +213,7 @@ end
 
 %% Run Adaptive Bayesian Inference Algorithm 
 
-max_iter = 100;      % number of Bayesian updates to perform
+max_iter = 1;      % number of Bayesian updates to perform
 
 % array for plotting coefficient convergence
 a_evo = zeros([n_as, max_iter]);
