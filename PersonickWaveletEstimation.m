@@ -8,12 +8,14 @@ rng(str2num(array_id));
 %img = abs(randn([2,2]));
 %load('db1_4sparse_4x4_img.mat');
 img = abs(randn([4,4]));
-disp(img)
+
 
 
 % Image variables
 img_dims = size(img);                  % image dimension vector [y pixels, x pixels]
 img = img/sum(img(:));              % normalized scene intensity distribution 
+
+disp(img)
 
 % Imaging system (Gaussian PSF)
 rl = max(img_dims);                     % Rayleigh length (in pixels)
