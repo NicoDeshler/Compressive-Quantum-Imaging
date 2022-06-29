@@ -164,12 +164,6 @@ p_a = mvnpdf(a_vec,a_mu,a_cov);
 
 end
 
-function p_a = mvgbm_prior(a_vec, a_mu1, a_cov1, a_mu2,a_cov2,q)
-p_a = (1-q)*mvnpdf(a_vec,a_mu1,a_cov1) + (q)*mvnpdf(a_vec,a_mu2,a_cov2);
-
-
-end
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% SAMPLING METHODS %%%%%%%%%%%%%%%%%%%%%%%
 function [a_mu_post, a_cov_post] = interior_sampling(pdf,N_samples,n_as,a_min,a_max)

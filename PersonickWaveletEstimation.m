@@ -1,12 +1,14 @@
 function PersonickWaveletEstimation(array_id)
 
 disp(['PBS_ARRAYID:',array_id]);
+rng(str2num(array_id));
 % INITIALIZATION
 
 % load in an image
 %img = abs(randn([2,2]));
 %load('db1_4sparse_4x4_img.mat');
 img = abs(randn([4,4]));
+disp(img)
 
 
 % Image variables
@@ -67,7 +69,7 @@ N_pho_iter = 1e5;                  % number of photons collected per Bayesian up
 
 % sampling method and parameters
 sampling_method = 'importance';    % ['interior','importance','slice','MH']
-N_samples = 1e5;           % number of samples taken to approximate the posterior distribution
+N_samples = 1e2;           % number of samples taken to approximate the posterior distribution
 
 % posterior method
 posterior_method = 'MVN';           % ['ksdensity','mvksdensity','MVN']
