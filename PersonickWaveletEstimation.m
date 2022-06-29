@@ -1,7 +1,7 @@
 function PersonickWaveletEstimation(array_id)
+
+disp(['PBS_ARRAYID:',array_id]);
 % INITIALIZATION
-clear
-close all
 
 % load in an image
 %img = abs(randn([2,2]));
@@ -447,7 +447,7 @@ if make_videos
     close(vid_recon)
 end
 
-save(fullfile(save_dir,['Config_Recon_Data_t',num2str(array_id),'.mat']),'a_evo','a_var_evo','theta_dist',...
+save(fullfile(save_dir,['Config_Recon_Data_t',array_id,'.mat']),'a_evo','a_var_evo','theta_dist',...
     'WaveletName','WaveletLevel','wv_idx',...
     'img','W','gt_a_vec','img_est',...
     'n_HG_modes','N_pho_iter','max_iter',...
