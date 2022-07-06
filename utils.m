@@ -1,8 +1,9 @@
 
 % Generate images that are sparse in wavelet domain
-%[img,coeffs] = gen_wavelet_sparse_img('db1',1,[2,2],.75);
+[img,coeffs] = gen_wavelet_sparse_img('db1',log2(64),[64,64],.1);
 
 
+%{
 % Test importance sampling
 pdf_mu = [1,1];
 pdf_sig = eye(2);
@@ -12,7 +13,7 @@ ref_mu = [0,0];
 ref_sig = eye(2);
 
 [x_mu,x_sig] = importance_sampling(pdf,N_samples,ref_mu,ref_sig);
-
+%}
 
 
 
@@ -24,7 +25,7 @@ function sample = sampleGBMPrior(q,mu,z)
     x2 = normrnd(mu(:,2),z(:,2));
     coinflips = binornd(1,q,[numel(x1),1]);
     
-    aa_vec = coinflips.*x1 + ~coinflips.*x2;
+    aa_vec = ~coinflips.*x1 + coinflips.*x2;
     aa_vec(end)=1;
 end
 
@@ -36,12 +37,14 @@ function [img_sparse, ws] =  gen_wavelet_sparse_img(WaveletName,WaveletLevel,img
     % Wavlet Level - level of decomposition desired
     % img_dims - [x,y] dimensions of the input image undergoing the
     % transform
-    % q - sparsity coefficients q = # zeros/#wavelets
+    % q - sparsity coefficients q = # non-zero wavelets / #wavelets
     % ---------------------------------------------
     % img_sparse - sparse image in wavelet domain
     % ws - sparse wavelet coefficient vector for img
     %%
-    img = abs(randn(img_dims));
+    %img = abs(randn(img_dims));
+    img = imread("Cameraman.tif");
+    img = imresize(img,img_dims);
     [C,S] = wavedec2(img,WaveletLevel,WaveletName);
     ws = C;                       % sparsified wavelet coefficient vector
     [~,sort_idx] = sort(abs(ws),'descend');
