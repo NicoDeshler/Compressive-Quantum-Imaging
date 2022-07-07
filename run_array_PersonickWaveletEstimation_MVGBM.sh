@@ -1,5 +1,5 @@
 #!/bin/bash
-#PBS -N QMWaveletEst_4x4
+#PBS -N QMWaveletEst_8x8sparse
 #PBS -j oe
 #PBS -d /home/nicolas/Research/Compressive-Quantum-Imaging/
 #PBS -l nodes=1:ppn=8
