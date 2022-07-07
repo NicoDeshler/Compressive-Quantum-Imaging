@@ -3,8 +3,8 @@ function PersonickWaveletEstimation_MVGBM(array_id)
 % INITIALIZATION
 
 % Simulated image Preliminaries
-img_dims = [4,4];
-q = .25;                               % fractional sparsity  K/N = (# non-zero params/ # params)
+img_dims = [8,8];
+q = .1;                                % fractional sparsity  K/N = (# non-zero params/ # params)
 WaveletName = 'db1';                   % wavelet type
 WaveletLevel = log2(max(img_dims));    % wavelet decomposition level (full-depth decomposition)
 % generate sparse image
@@ -189,14 +189,14 @@ while iter <= max_iter
     % sample the posteriors and estimate the wavelet coefficients
     [a_vec, a_mu_post, a_cov_post] = BayesianUpdate_MVGBMposterior(...
         l_vec, B_gamma, C_vec,...
-        a_mu0, a_cov0, a_mu1, a_cov1, q+(1-q)*(iter/max_iter),...
+        a_mu0, a_cov0, a_mu1, a_cov1, q,...
         N_samples,...
         W,wv_idx,WaveletName);   
     
     % update GBM parameters
     a_mu1 = a_mu_post;
     a_cov1 = a_cov_post;
-    %q = 2*q - q^2;
+    q = 2*q - q^2;
     
     
     
