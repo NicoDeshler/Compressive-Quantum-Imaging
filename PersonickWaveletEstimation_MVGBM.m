@@ -141,7 +141,7 @@ set(groot,'defaultLegendInterpreter','latex');
 
 
 %% Make video objects
-make_videos = 1;
+make_videos = 0;
 if make_videos
     
     vid_a = VideoWriter(fullfile(save_dir,'TransformedParams.avi'));
