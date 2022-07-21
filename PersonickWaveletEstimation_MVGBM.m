@@ -173,7 +173,7 @@ end
 
 %% Run Adaptive Bayesian Inference Algorithm 
 
-max_iter = 1;      % number of Bayesian updates to perform
+max_iter = 100;      % number of Bayesian updates to perform
 
 % array for plotting coefficient convergence
 a_evo = zeros([n_as, max_iter]);
@@ -348,7 +348,7 @@ save(fullfile(save_dir,['Config_Recon_Data_t',array_id,'.mat']),'a_evo','a_var_e
     'WaveletName','WaveletLevel','wv_idx',...
     'img','W','gt_a_vec','img_est',...
     'n_HG_modes','N_pho_iter','max_iter',...
-    'N_samples','sampling_method')
+    'N_samples')
 
 
 % close video objects
