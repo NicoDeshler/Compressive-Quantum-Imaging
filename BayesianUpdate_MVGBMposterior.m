@@ -88,6 +88,6 @@ function [a_mu_post, a_cov_post] = importance_sampling(pdf,N_samples,n_as,ref_mu
     
     prob_ratio = reshape(prob_ratio,[1,1,N_samples]);
     a_cov_post = mean(dyad_stack.*prob_ratio,3);
-    disp(a_cov_post)
+    %disp(a_cov_post)
     a_mu_post = a_mu_post';
 end

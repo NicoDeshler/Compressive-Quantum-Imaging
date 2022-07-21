@@ -2,6 +2,9 @@ function PersonickWaveletEstimation_MVGBM(array_id)
 
 % INITIALIZATION
 
+disp(['PBS_ARRAYID:',array_id]);
+rng(str2double(array_id));
+
 % Simulated image Preliminaries
 img_dims = [8,8];
 q = .1;                                % fractional sparsity  K/N = (# non-zero params/ # params)
@@ -9,7 +12,6 @@ WaveletName = 'db1';                   % wavelet type
 WaveletLevel = log2(max(img_dims));    % wavelet decomposition level (full-depth decomposition)
 % generate sparse image
 [img,ws] = gen_wavelet_sparse_img(WaveletName,WaveletLevel,img_dims,q);
-
 
 
 % Image variables
@@ -68,6 +70,8 @@ N_pho_iter = 1e5;                  % number of photons collected per Bayesian up
 
 % sampling parameters
 N_samples = 1e5;           % number of samples taken to approximate the posterior distribution
+
+
 
 %% GBM PRIOR SETUP
 % GBM prior parameters
@@ -141,8 +145,9 @@ set(groot,'defaultLegendInterpreter','latex');
 
 
 %% Make video objects
-make_videos = 0;
-if make_videos
+make_figures = 0;
+
+if make_figures
     
     vid_a = VideoWriter(fullfile(save_dir,'TransformedParams.avi'));
     vid_a.FrameRate = 3;
@@ -168,7 +173,7 @@ end
 
 %% Run Adaptive Bayesian Inference Algorithm 
 
-max_iter = 100;      % number of Bayesian updates to perform
+max_iter = 1;      % number of Bayesian updates to perform
 
 % array for plotting coefficient convergence
 a_evo = zeros([n_as, max_iter]);
@@ -225,9 +230,7 @@ while iter <= max_iter
 
     % choose min eigenvector
     [~, min_eigval_idx] = min(lam);
-    h = V_Q(:,min_eigval_idx(1)); % joint parameter vector
-    % augment h
-    h = [h;0];
+    h = [V_Q(:,min_eigval_idx(1));0]; % joint parameter vector
     
     % calculate Gamma_1
     Gamma_1 = Gamma_1_HG(h,Gamma_i1);
@@ -246,7 +249,7 @@ while iter <= max_iter
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Write figures to video objects
-    if make_videos
+    if make_figures
         
         % TRANSFORMED PARAMETERS
         figure(fig_a)
@@ -349,45 +352,46 @@ save(fullfile(save_dir,['Config_Recon_Data_t',array_id,'.mat']),'a_evo','a_var_e
 
 
 % close video objects
-if make_videos
+if make_figures
     close(vid_a)
     close(vid_posteriors)
     close(vid_recon)
 end
 
 
+if make_figures
+    % Convergence Plots
+    fig_convergence = figure;
+    fig_convergence.WindowState = 'maximized';
+    subplot(1,3,1)
+    imagesc(a_evo)
+    title('Parameter Convergence')
+    xlabel('Iteration')
+    ylabel('$a_i$')
+    xticks(5:5:max_iter)
+    yticks(1:n_as)
+    axis('square')
+    colorbar
 
-% Convergence Plots
-fig_convergence = figure;
-fig_convergence.WindowState = 'maximized';
-subplot(1,3,1)
-imagesc(a_evo)
-title('Parameter Convergence')
-xlabel('Iteration')
-ylabel('$a_i$')
-xticks(5:5:max_iter)
-yticks(1:n_as)
-axis('square')
-colorbar
+    subplot(1,3,2)
+    imagesc(a_var_evo)
+    title('Variance Convergence')
+    xlabel('Iteration')
+    ylabel('$Var(a_i)$')
+    xticks(5:5:max_iter)
+    yticks(1:n_as)
+    axis('square')
+    colorbar
 
-subplot(1,3,2)
-imagesc(a_var_evo)
-title('Variance Convergence')
-xlabel('Iteration')
-ylabel('$Var(a_i)$')
-xticks(5:5:max_iter)
-yticks(1:n_as)
-axis('square')
-colorbar
+    subplot(1,3,3)
+    plot(1:max_iter,theta_dist);
+    title('Wavelet Error Convergence')
+    xlabel('Iteration')
+    ylabel('$||\mathbf{\theta}-\hat{\mathbf{\theta}}||_2$')
+    xticks(5:5:max_iter)
+    axis('square')
 
-subplot(1,3,3)
-plot(1:max_iter,theta_dist);
-title('Wavelet Error Convergence')
-xlabel('Iteration')
-ylabel('$||\mathbf{\theta}-\hat{\mathbf{\theta}}||_2$')
-xticks(5:5:max_iter)
-axis('square')
-
-% save figure
-saveas(fig_convergence,fullfile(save_dir,'ConvergencePlots.png'))
+    % save figure
+    saveas(fig_convergence,fullfile(save_dir,'ConvergencePlots.png'))
+end
 end
