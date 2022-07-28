@@ -29,3 +29,8 @@ Theory 17.3 (1971), pp. 240–246.
 demultiplexing”. In: New Journal of Physics 19.2 (Feb. 2017), p. 023054.
 doi: 10.1088/1367- 2630/aa60ee. url: https://doi.org/10.1088/
 1367-2630/aa60ee.
+
+4) Jesus Rubio and Jacob Dunningham. “Bayesian multiparameter quantum
+metrology with limited data”. In: Physical Review A 101.3 (Mar. 2020).
+doi: 10.1103/physreva.101.032114. url: https://doi.org/10.1103%
+2Fphysreva.101.032114.
