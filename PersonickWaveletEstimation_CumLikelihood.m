@@ -5,7 +5,7 @@ disp(['PBS_ARRAYID:',array_id]);
 rng(str2double(array_id));
 
 % Simulated image Preliminaries
-img_dims = [4,4];
+img_dims = [8,8];
 q = .25;                                % fractional sparsity  K/N = (# non-zero params/ # params)
 WaveletName = 'db1';                   % wavelet type
 WaveletLevel = floor(log2(max(img_dims)));   % wavelet decomposition level (full-depth decomposition)
@@ -109,7 +109,7 @@ set(groot,'defaultLegendInterpreter','latex');
 
 
 %% Make video objects
-make_figures = 1;
+make_figures = 0;
 
 if make_figures
     
