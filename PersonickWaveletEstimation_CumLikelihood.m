@@ -65,10 +65,10 @@ end
 C_vec = MatMulVecOp(W',A_vec);
 
 % photon collection variables
-N_pho_iter = 1e3;                  % number of photons collected per Bayesian update iteration
+N_pho_iter = 1e4;                  % number of photons collected per Bayesian update iteration
 
 % sampling parameters
-N_samples = 1e6;           % number of samples taken to approximate the posterior distribution
+N_samples = 1e4;           % number of samples taken to approximate the posterior distribution
 
 %% GBM PRIOR SETUP
 % GBM prior parameters
@@ -109,7 +109,7 @@ set(groot,'defaultLegendInterpreter','latex');
 
 
 %% Make video objects
-make_figures = 0;
+make_figures = 1;
 
 if make_figures
     
@@ -129,7 +129,7 @@ end
 
 %% Run Adaptive Bayesian Inference Algorithm 
 
-max_iter = 100;      % number of Bayesian updates to perform
+max_iter = 3;      % number of Bayesian updates to perform
 
 % array for plotting coefficient convergence
 a_evo = zeros([n_as, max_iter]);
