@@ -109,7 +109,7 @@ set(groot,'defaultLegendInterpreter','latex');
 
 
 %% Make video objects
-make_figures = 1;
+make_figures = 0;
 
 if make_figures
     
