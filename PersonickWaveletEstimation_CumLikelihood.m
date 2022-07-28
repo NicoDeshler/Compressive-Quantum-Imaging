@@ -68,7 +68,7 @@ C_vec = MatMulVecOp(W',A_vec);
 N_pho_iter = 1e4;                  % number of photons collected per Bayesian update iteration
 
 % sampling parameters
-N_samples = 1e4;           % number of samples taken to approximate the posterior distribution
+N_samples = 1e6;           % number of samples taken to approximate the posterior distribution
 
 %% GBM PRIOR SETUP
 % GBM prior parameters
