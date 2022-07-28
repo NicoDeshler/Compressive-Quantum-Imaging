@@ -129,7 +129,7 @@ end
 
 %% Run Adaptive Bayesian Inference Algorithm 
 
-max_iter = 3;      % number of Bayesian updates to perform
+max_iter = 100;      % number of Bayesian updates to perform
 
 % array for plotting coefficient convergence
 a_evo = zeros([n_as, max_iter]);
