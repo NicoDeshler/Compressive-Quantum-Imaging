@@ -348,7 +348,7 @@ while iter <= max_iter
     % update convergence containers
     a_evo(:,iter) = a_vec;
     a_var_evo(:,iter) = diag(a_cov_post);
-    theta_dist(iter) = norm(gt_theta_vec - theta_vec);
+    theta_dist(iter) = norm(gt_theta_vec - theta_vec)/norm(gt_theta_vec);
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Write figures to video objects

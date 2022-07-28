@@ -7,9 +7,10 @@ rng(str2double(array_id));
 
 % Simulated image Preliminaries
 img_dims = [8,8];
-q = .1;                                % fractional sparsity  K/N = (# non-zero params/ # params)
+q = .25;                                % fractional sparsity  K/N = (# non-zero params/ # params)
 WaveletName = 'db1';                   % wavelet type
 WaveletLevel = log2(max(img_dims));    % wavelet decomposition level (full-depth decomposition)
+
 % generate sparse image
 [img,ws] = gen_wavelet_sparse_img(WaveletName,WaveletLevel,img_dims,q);
 
@@ -113,25 +114,8 @@ B_gamma = eye(N_HG_modes);
 assert(ishermitian(B_gamma) && trace(B_gamma)>0);
 
 %% Make directory for saving results
-
-%{
-save_dir = fullfile('Testing',posterior_method,sampling_method,...
-[num2str(N_pho_iter/1000),'Kpho'],...
-[num2str(N_samples/1000),'Ksamps']);
-if exist(save_dir,'dir')
-    i = 1;
-    save_dir_x = fullfile(save_dir,'ex1');
-    while exist(save_dir_x, 'dir')
-        exi = ['ex',num2str(i)];
-        save_dir_x = fullfile(save_dir,exi);
-        i = i+1;
-    end
-    save_dir = save_dir_x;
-end
-mkdir(save_dir)
-%}
 % save directory for cluster
-save_dir = fullfile('Testing','sparse8x8_recon_mvgbm');
+save_dir = fullfile('Testing','8x8_recon_study_mvgbm');
 if ~exist(save_dir,'dir')
     mkdir(save_dir)
 end
@@ -154,14 +138,6 @@ if make_figures
     open(vid_a)
     fig_a = figure;
     fig_a.WindowState = 'maximized';
-
-    %{
-    vid_posteriors = VideoWriter(fullfile(save_dir,'Posteriors.avi'));
-    vid_posteriors.FrameRate = 3;
-    open(vid_posteriors)
-    fig_posteriors = figure;
-    fig_posteriors.WindowState = 'maximized';
-    %}
     
     vid_recon = VideoWriter(fullfile(save_dir,'ImageRecon.avi'));
     vid_recon.FrameRate =3;
@@ -201,8 +177,22 @@ while iter <= max_iter
     % update GBM parameters
     a_mu1 = a_mu_post;
     a_cov1 = a_cov_post;
+    
+    
+    %{
+    % asymptotic q update
     q = 2*q - q^2;
     
+    % step-wise q update
+    step_loc = max_iter/2;
+    q = q*(iter < step_loc) + 1*(iter > step_loc);
+    %}
+    
+    % linear q update
+    q = (1-q)/(max_iter - iter) + q;
+    
+
+        
     
     
     % augment updated parameter variables
@@ -245,7 +235,7 @@ while iter <= max_iter
     % update convergence containers
     a_evo(:,iter) = a_vec;
     a_var_evo(:,iter) = diag(a_cov_post);
-    theta_dist(iter) = norm(gt_theta_vec - theta_vec);
+    theta_dist(iter) = norm(gt_theta_vec - theta_vec)/norm(gt_theta_vec);
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Write figures to video objects
@@ -267,27 +257,6 @@ while iter <= max_iter
         legend({'Ground Truth $\vec{a}$',['Estimate $\hat{\vec{a}}^{[',num2str(iter),']}$']})
         frame = getframe(fig_a);
         writeVideo(vid_a,frame)
-        
-        %{
-        if plot_posteriors
-            % POSTERIORS
-            figure(fig_posteriors)
-            % subplot figure dimensions
-            fd1 = ceil(sqrt(n_as));
-            fd2 = fd1;
-            for i = 1:n_as
-                % P(a1|l)
-                subplot(fd1,fd2,i)
-                plot(posterior_doms(i,:),posteriors(i,:))
-                xlabel(['$a_{',num2str(i),'}$'])
-                ylabel(['$P(a_{',num2str(i),'}^{[',num2str(iter),']}|\vec{l})$'])
-                ylim([0,1])
-            end
-
-            frame = getframe(fig_posteriors);
-            writeVideo(vid_posteriors,frame)
-        end
-        %}
         
         % RECONSTRUCTED IMAGE
         figure(fig_recon);
@@ -354,7 +323,6 @@ save(fullfile(save_dir,['Config_Recon_Data_t',array_id,'.mat']),'a_evo','a_var_e
 % close video objects
 if make_figures
     close(vid_a)
-    close(vid_posteriors)
     close(vid_recon)
 end
 
@@ -394,4 +362,5 @@ if make_figures
     % save figure
     saveas(fig_convergence,fullfile(save_dir,'ConvergencePlots.png'))
 end
+disp('DONE')
 end
