@@ -17,7 +17,8 @@ Our algorithm employs Spatial Mode Demultiplexing (SPADE) detailed in [Reference
 - Markov-Chain-Monte-Carlo methods used to sample from the posterior distribution
 
 # Theory
-$\rho(\theta)$
+
+$\rho(\mathbf{\theta}) = \int F(\mathbf{R}) \ket{}\bra{}$
 
 
 # References
