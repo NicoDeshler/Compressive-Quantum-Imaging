@@ -18,7 +18,7 @@ Our algorithm employs Spatial Mode Demultiplexing (SPADE) detailed in [Reference
 
 # Theory
 
-$\rho(\mathbf{\theta}) = \int F(\mathbf{R}) \ket{}\bra{}$
+$$\rho(\mathbf{\theta}) = \int F(\mathbf{R}) \ket{\phi}\bra{\phi(_)}$$
 
 
 # References
