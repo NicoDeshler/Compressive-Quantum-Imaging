@@ -16,6 +16,9 @@ Our algorithm employs Spatial Mode Demultiplexing (SPADE) detailed in [Reference
 - Sparsity prior imposed on the surrogate coefficients
 - Markov-Chain-Monte-Carlo methods used to sample from the posterior distribution
 
+# Theory
+$\rho(\theta)$
+
 
 # References
 1) K. K. Lee, S. Guha, and A. Ashok, "Quantum-inspired Optical Super-resolution Adaptive Imaging," In: OSA Imaging and Applied Optics Congress (2021)
