@@ -1,4 +1,4 @@
-# Compressive Subdiffraction Quantum Imaging
+# Compressive Quantum Imaging
 
 [The Paper](https://www.overleaf.com/read/pffyxrhkqvfw) can be found here.
 
