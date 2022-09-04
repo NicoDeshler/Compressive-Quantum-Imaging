@@ -16,9 +16,20 @@ Our algorithm employs Spatial Mode Demultiplexing (SPADE) detailed in [[3]](http
 - Markov-Chain-Monte-Carlo methods used to sample from the posterior distribution
 
 # Installation and Setup
+To donwload the repository, open up a Git terminal and enter the following command
 ```
-git clone 
+git clone https://github.com/NicoDeshler/Compressive-Quantum-Imaging.git
 ```
+
+Input parameters
+
+$$N_{pho}$$
+$$N_{}$$
+
+```
+PersonickWavelet
+```
+
 # Test Examples
 
 
