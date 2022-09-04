@@ -36,7 +36,7 @@ $$f(\mathbf{R}) = \sum_{i}^{N} \theta_i \Upsilon_i(\mathbf{R})$$
 In this work we leverage compressive sensing by imposing sparsity priors on the wavelet coefficients $\{\theta_i\}$. The purpose of this algorithm is to estimate these coefficients by performing jointly-optimal quantum modal measurements on the optical field at the image plane.
 
 
-Applying the normalization constraint $\int f(\mathbf{R}) d^2 \mathbf{R} = 1$ and non-negativity constraint $f(\mathbf{R}) \geq 0$ on the object intensity distribution, we can transform the wavelet estimation problem into the estimation of a elements from a simplex $\mathbb{S}^N$. First, vectorize the object intensity distribution $f(\mathbf{R}) \rightarrow \mathbf{f}$. With this we can write the relation.
+Applying the normalization constraint $\int f(\mathbf{R}) d^2 \mathbf{R} = 1$ and non-negativity constraint $f(\mathbf{R}) \geq 0$ on the object intensity distribution, we can transform the wavelet estimation problem into the estimation of a elements from a simplex $\mathcal{S}^{N}$. First, vectorize the object intensity distribution $f(\mathbf{R}) \rightarrow \mathbf{f}$. With this we can write the relation.
 
 $$\mathbf{f} = \mathbf{W} \mathbf{M} \mathbf{V} \mathbf{x}$$
 
@@ -45,8 +45,7 @@ where,
 - $\mathbf{W}$ is the inverse wavelet transform matrix 
 - $\mathbf{M}$ is a quasi-diagonal matrix that enforces the normalization constraint
 - $\mathbf{V}$ is the polytope vertex matrix that enforces the non-negativity constraint
-
-
+- $\mathbf{x} \in \mathcal{S}^{N}$
 
 
 # References
