@@ -22,7 +22,7 @@ To donwload the repository, open up a Git terminal and enter the following comma
 git clone https://github.com/NicoDeshler/Compressive-Quantum-Imaging.git
 ```
 
-Input parameters
+Arguments
 
 - $\texttt{img}$ : target image
 - $\texttt{Npho}$ : Number of photons collected between adaptations
