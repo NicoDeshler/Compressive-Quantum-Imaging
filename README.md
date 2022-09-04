@@ -24,11 +24,12 @@ git clone https://github.com/NicoDeshler/Compressive-Quantum-Imaging.git
 
 Input parameters
 
-$$N_{pho}$$
-$$N_{}$$
+- $\texttt{img}$ : target image
+- $\texttt{Npho}$ : Number of photons collected between adaptations
+- $\texttt{Nsamples}$ : Number of posterior samples taken
 
 ```
-PersonickWavelet
+matlab PersonickWaveletEstimation(img,Npho,Nsamples)
 ```
 
 # Test Examples
