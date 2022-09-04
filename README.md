@@ -5,13 +5,13 @@
 
 This package unifies ideas from compressive sensing and quantum parameter estimation to passively image incoherent distributed scenes at multiple resolution levels extending beyond the diffraction limit. We take inspiration from [[1]](https://iopscience.iop.org/article/10.1088/1367-2630/aa60ee) and use an adaptive bayesian approach to estimate parameters of the scene. Since natural images are generally compressible when transformed to a wavelet basis, or algorithm adaptively estimates wavelet coefficients while enforcing a sparsity prior. The bayesian framework for quantum parameter estimation is detailed in [[2]](https://ieeexplore.ieee.org/document/1054643).
 
-Our algorithm employs Spatial Mode Demultiplexing (SPADE) detailed in [[3]](https://iopscience.iop.org/article/10.1088/1367-2630/aa60ee) to decompose the optical field at the focal plane of the imaging system into the Hermite-Gauss modes. Our quantum measurement consists of counting the number of photons that appear in each mode.
+Our algorithm employs Spatial Mode Demultiplexing (SPADE) detailed in [[3]](https://iopscience.iop.org/article/10.1088/1367-2630/aa60ee) to decompose the optical field at the focal plane of the imaging system into an orthogonal modal basis. Our quantum measurement consists of counting the number of photons that appear in each mode.
 
 
 # Algorithm Features
 
-- Employs pre-detection spatial mode sorting to outperform direct imaging
-- Parameters to be estimated are surrogates to the wavelet coefficients of the image related by a linear transformation that preserves the trace 1 norm of the density operator describing the image state quantum mechanically.
+- Employs photon counting measurements on transverse spatial modes to outperform direct imaging
+- Parameters to be estimated are surrogates to the wavelet coefficients of the image related by a linear transformation that preserve the trace 1 norm of the density operator and the non-negativity requirement of the object intensity distribution.
 - Uses adaptive Bayesian framework founded on Personick quantum parameter estimation theory to update joint measurement operator
 - Sparsity prior imposed on the surrogate coefficients
 - Markov-Chain-Monte-Carlo methods used to sample from the posterior distribution
