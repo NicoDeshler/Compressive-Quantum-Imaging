@@ -1,4 +1,5 @@
 # Compressive Quantum Imaging
+Author: Nicolas Deshler
 
 [The Paper](https://www.overleaf.com/read/pffyxrhkqvfw) can be found here.
 
