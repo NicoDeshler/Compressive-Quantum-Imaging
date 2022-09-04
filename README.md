@@ -18,7 +18,35 @@ Our algorithm employs Spatial Mode Demultiplexing (SPADE) detailed in [[3]](http
 
 # Theory
 
-$$\rho(\mathbf{\theta}) = \int F(\mathbf{R}) \ket{\phi}\bra{\phi(_)}$$
+We describe the quantum mechanical state of a normalized intensity distribution $f(\mathbf{R})$ at the object plane with coordinates $\mathbf{R} = [X,Y]$ as a single-photon density operator (mixed state),
+
+$$\hat{\rho} = \int f(\mathbf{R}) \ket{\psi(\mathbf{R})}\bra{\psi(\mathbf{R})}d^{2}\mathbf{R}$$
+
+
+where
+
+$$\ket{\psi(\mathbf{R})} = \int_ \psi(\mathbf{r}-\mathbf{R}) \ket{\mathbf{r}} d^{2}\mathbf{r}$$
+
+and $\ket{\mathbf{r}} = \hat{a}^{\dagger} \delta(\mathbf{r}-\mathbf{r}')\ket{0}$ is the single-photon excitation state at the position $\mathbf{r}$ on the image plane (assuming 0 magnification).  
+
+In the Bayesian framework, we assume that the class of objects that we are imaging come from some distribution. We express our initial beliefs about the object $f(\mathbf{R})$ through a prior distribution. Natural scenes have been shown to be compressible in the wavelet domain. In general, the scene intensty distribution can be represented as a linear combination of wavelet functions $\{\Upsilon_i(\mathbf{R})\}$
+
+$$f(\mathbf{R}) = \sum_{i}^{N} \theta_i \Upsilon_i(\mathbf{R})$$
+
+In this work we leverage compressive sensing by imposing sparsity priors on the wavelet coefficients $\{\theta_i\}$. The purpose of this algorithm is to estimate these coefficients by performing jointly-optimal quantum modal measurements on the optical field at the image plane.
+
+
+Applying the normalization constraint $\int f(\mathbf{R}) d^2 \mathbf{R} = 1$ and non-negativity constraint $f(\mathbf{R}) \geq 0$ on the object intensity distribution, we can transform the wavelet estimation problem into the estimation of a elements from a simplex $\mathbb{S}^N$. First, vectorize the object intensity distribution $f(\mathbf{R}) \rightarrow \mathbf{f}$. With this we can write the relation.
+
+$$\mathbf{f} = \mathbf{W} \mathbf{M} \mathbf{V} \mathbf{x}$$
+
+where,
+
+- $\mathbf{W}$ is the inverse wavelet transform matrix 
+- $\mathbf{M}$ is a quasi-diagonal matrix that enforces the normalization constraint
+- $\mathbf{V}$ is the polytope vertex matrix that enforces the non-negativity constraint
+
+
 
 
 # References
