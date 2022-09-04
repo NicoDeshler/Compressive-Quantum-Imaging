@@ -22,14 +22,14 @@ To donwload the repository, open up a Git terminal and enter the following comma
 git clone https://github.com/NicoDeshler/Compressive-Quantum-Imaging.git
 ```
 
-Arguments
+The algorithm can be shown to work in simulation by running it on a provided target scene. The main script `PersonickWavleetEstimation.m` reads a target image from the working directory. The entire image is assumed to be sparse in the 'db1' wavelet basis. Its spatial extent resides within the Rayleigh width of a direct imaging system. Photon counting on SPADE measurements are simulated and the Bayesian adaptive measurement scheme is applied to recover the image.
 
-- $\texttt{img}$ : target image
+- $\texttt{imgFile}$ : Filename for the target image (must be a grayscale image in the working directory)
 - $\texttt{Npho}$ : Number of photons collected between adaptations
 - $\texttt{Nsamples}$ : Number of posterior samples taken
 
 ```
-matlab PersonickWaveletEstimation(img,Npho,Nsamples)
+matlab [img_out,] PersonickWaveletEstimation(imgFile,Npho,Nsamples)
 ```
 
 # Test Examples
