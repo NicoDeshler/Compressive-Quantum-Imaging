@@ -16,13 +16,15 @@ Our algorithm employs Spatial Mode Demultiplexing (SPADE) detailed in [[3]](http
 - Sparsity prior imposed on the surrogate coefficients
 - Markov-Chain-Monte-Carlo methods used to sample from the posterior distribution
 
-# Computing Resources, Software Versions, Package Extensions
+# Computing Requirements, Software Versions, Package Extensions
+
 - Runs on native matlab 2017 or higher
 - GPU NVIDIA GeForce GTX 1090
 - CPU Intel Core i7
 - RAM 8GB
 
 # Installation and Setup
+
 To donwload the repository, open up a Git terminal and enter the following command
 ```
 git clone https://github.com/NicoDeshler/Compressive-Quantum-Imaging.git
