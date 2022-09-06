@@ -37,7 +37,7 @@ The algorithm can be shown to work in simulation by running it on a provided tar
 - $\texttt{Nsamples}$ : Number of posterior samples taken
 
 ```
-matlab [img_out,] PersonickWaveletEstimation(imgFile,Npho,Nsamples)
+matlab [img_out] = PersonickWaveletEstimation(imgFile,Npho,Nsamples)
 ```
 
 # Test Examples
