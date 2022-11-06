@@ -17,12 +17,10 @@ Our algorithm employs Spatial Mode Demultiplexing (SPADE) detailed in [[3]](http
 - Sparsity prior imposed on the surrogate coefficients
 - Markov-Chain-Monte-Carlo methods used to sample from the posterior distribution
 
-# Computing Requirements, Software Versions, Package Extensions
-
-- Runs on native matlab 2017 or higher
-- GPU NVIDIA GeForce GTX 1090
-- CPU Intel Core i7
-- RAM 8GB
+# System Requirements, Software Versions, Package Extensions
+- 8GB RAM
+- matlab 2017 or higher
+- [mtimesx](https://www.mathworks.com/matlabcentral/fileexchange/25977-mtimesx-fast-matrix-multiply-with-multi-dimensional-support)
 
 # Installation and Setup
 
