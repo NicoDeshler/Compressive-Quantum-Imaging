@@ -20,7 +20,7 @@ Our algorithm employs Spatial Mode Demultiplexing (SPADE) detailed in [[3]](http
 # System Requirements, Software Versions, Package Extensions
 - 8GB RAM
 - matlab 2017 or higher
-- [mtimesx](https://www.mathworks.com/matlabcentral/fileexchange/25977-mtimesx-fast-matrix-multiply-with-multi-dimensional-support)
+- [mtimesx](https://www.mathworks.com/matlabcentral/fileexchange/25977-mtimesx-fast-matrix-multiply-with-multi-dimensional-support) fast matrix multiplication extension for matlab
 
 # Installation and Setup
 
