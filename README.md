@@ -8,6 +8,7 @@ This package unifies ideas from compressive sensing and quantum parameter estima
 Our algorithm employs Spatial Mode Demultiplexing (SPADE) detailed in [[3]](https://iopscience.iop.org/article/10.1088/1367-2630/aa60ee) to decompose the optical field at the focal plane of the imaging system into an orthogonal modal basis. Our quantum measurement consists of counting the number of photons that appear in each mode.
 
 
+
 # Algorithm Features
 
 - Employs photon counting measurements on transverse spatial modes to outperform direct imaging
@@ -25,12 +26,27 @@ Our algorithm employs Spatial Mode Demultiplexing (SPADE) detailed in [[3]](http
 
 # Installation and Setup
 
-To donwload the repository, open up a Git terminal and enter the following command
+To download the repository in a desired local directory `my/dir/path/` open a Git terminal run
 ```
+cd my/dir/path/
 git clone https://github.com/NicoDeshler/Compressive-Quantum-Imaging.git
 ```
+Enter the project directory 
+```
+cd Compressive-Quantum-Imaging
+```
+and install the 'mtimesx' package (a fast matrix-multiply package implemented in C) 
+```
+matlab setup_mtimesx.m
+``` 
+If the last command doesn't work then matlab does not have an environment variable PATH on your machine. In this case, just open matlab for your system and run `setup_mtimesx.m` from the matlab terminal.
 
-The algorithm can be shown to work in simulation by running it on a provided target scene. The main script `PersonickWavletEstimation.m` reads a target image from the working directory. The entire image is assumed to be sparse in the 'db1' wavelet basis. Its spatial extent resides within the Rayleigh width of a direct imaging system. Photon counting on SPADE measurements are simulated and the Bayesian adaptive measurement scheme is applied to recover the image.
+
+# Running the code
+The algorithm can be shown to work in simulation by running it on a scene supplied by the user. 
+
+
+The main script `PersonickWavletEstimation.m` reads a target image from the working directory. The entire image is assumed to be sparse in the 'db1' wavelet basis. Its spatial extent resides within the Rayleigh width of a direct imaging system. Photon counting on SPADE measurements are simulated and the Bayesian adaptive measurement scheme is applied to recover the image.
 
 - $\texttt{imgFile}$ : Filename for the target image (must be a grayscale image in the working directory)
 - $\texttt{Npho}$ : Number of photons collected between adaptations
