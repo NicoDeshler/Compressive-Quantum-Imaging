@@ -41,6 +41,17 @@ If the last command doesn't work then matlab does not have an environment variab
 
 
 # Running the code
+To demonstrate this quantum superresolution imaging program in action, we supply the program with the filepath to a square grayscale image.
+```
+matlab main(img_path)
+```
+There are a collection of optional arguments that a user may choose to include as well for better performance
+
+```
+W = a representation matrix for the signal  of 
+```
+
+You can run simulated reconstruction of a desired target image where the support falls within the rayleigh w
 The algorithm can be shown to work in simulation by running it on a scene supplied by the user. 
 
 
