@@ -3,9 +3,9 @@ Author: Nicolas Deshler
 
 [The Paper](https://www.overleaf.com/project/62e435a228736e7fca864bea) can be found here.
 
-This package unifies ideas from compressive sensing and quantum parameter estimation to passively image incoherent distributed scenes at multiple resolution levels extending beyond the diffraction limit. We take inspiration from [[1]](https://iopscience.iop.org/article/10.1088/1367-2630/aa60ee) and use an adaptive bayesian approach to estimate parameters of the scene. Since natural images are generally compressible when transformed to a wavelet basis, or algorithm adaptively estimates wavelet coefficients while enforcing a sparsity prior. The bayesian framework for quantum parameter estimation is detailed in [[2]](https://ieeexplore.ieee.org/document/1054643).
+This package unifies ideas from compressive sensing and quantum parameter estimation to passively image incoherent distributed scenes at multiple resolution levels extending beyond the diffraction limit. We take inspiration from [[1]](https://iopscience.iop.org/article/10.1088/1367-2630/aa60ee) and use an adaptive bayesian approach to estimate parameters of the scene. Since natural images are generally compressible in a wavelet basis, this algorithm adaptively estimates wavelet coefficients while enforcing a sparsity prior. The bayesian framework for quantum parameter estimation is detailed in [[2]](https://ieeexplore.ieee.org/document/1054643).
 
-Our algorithm employs Spatial Mode Demultiplexing (SPADE) detailed in [[3]](https://iopscience.iop.org/article/10.1088/1367-2630/aa60ee) to decompose the optical field at the focal plane of the imaging system into an orthogonal modal basis. Our quantum measurement consists of counting the number of photons that appear in each mode.
+This algorithm employs Spatial Mode Demultiplexing (SPADE) detailed in [[3]](https://iopscience.iop.org/article/10.1088/1367-2630/aa60ee) to decompose the optical field at the focal plane of the imaging system into an orthogonal modal basis. Our quantum measurement consists of counting the number of photons that appear in each mode.
 
 
 
@@ -41,9 +41,11 @@ If the last command doesn't work then matlab does not have an environment variab
 
 
 # Running the code
-To demonstrate this quantum superresolution imaging program in action, we supply the program with the filepath to a square grayscale image.
+This section is set up to demonstrate our compressive quantum superresolution imaging algorithm in simulation. The target scene (a square graysacle image) is the only required input parameter for the program. There are several assumptions that this program makes:
+- The target scene exists entirely within the sub-Rayleigh regime. That is, the angular extent of the image is equal to the rayleigh limit. 
+- 
 ```
-matlab main(img_path)
+matlab main(scene, coords)
 ```
 There are a collection of optional arguments that a user may choose to include as well for better performance
 
@@ -62,7 +64,7 @@ The main script `PersonickWavletEstimation.m` reads a target image from the work
 - $\texttt{Nsamples}$ : Number of posterior samples taken
 
 ```
-matlab [img_out] = PersonickWaveletEstimation(imgFile,Npho,Nsamples)
+matlab img_out = PersonickWaveletEstimation(imgFile,Npho,Nsamples)
 ```
 
 # Test Examples
