@@ -45,12 +45,14 @@ This section is set up to demonstrate our compressive quantum superresolution im
 - The target scene exists entirely within the sub-Rayleigh regime. That is, the angular extent of the image is equal to the rayleigh limit. 
 - 
 ```
-matlab main(scene, coords)
+matlab main(scene)
 ```
 There are a collection of optional arguments that a user may choose to include as well for better performance
 
 ```
-W = a representation matrix for the signal  of 
+W : a representation matrix for the signal
+coords : a coordinate system over which the wavelets are defined
+rl : rayleigh limit
 ```
 
 You can run simulated reconstruction of a desired target image where the support falls within the rayleigh w
